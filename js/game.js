@@ -30,6 +30,12 @@ class Game {
         
         // 持ち駒の更新イベント
         this.onCapturedPiecesUpdate = null;
+        
+        // AIの思考更新イベント
+        this.onAiThinkingUpdate = null;
+        
+        // 勝敗情報
+        this.gameResult = null; // null: 進行中, 'sente_win': 先手勝ち, 'gote_win': 後手勝ち
     }
     
     /**
@@ -40,6 +46,7 @@ class Game {
         this.currentPlayer = PLAYER.SENTE;
         this.gameHistory = [];
         this.currentMoveIndex = -1;
+        this.gameResult = null; // ゲーム結果をリセット
         this.updateGameState();
         this.board.draw();
         
@@ -78,6 +85,11 @@ class Game {
         
         // 棋譜再生中の場合は操作を無視
         if (this.currentMoveIndex < this.gameHistory.length - 1) {
+            return;
+        }
+        
+        // ゲームが終了している場合は操作を無視
+        if (this.gameResult !== null) {
             return;
         }
         
@@ -264,12 +276,30 @@ class Game {
         if (this.onCapturedPiecesUpdate) {
             this.onCapturedPiecesUpdate(this.board.capturedPieces);
         }
+        
+        // 玉が取られたかチェック
+        if (capturedPiece && capturedPiece.type === PIECE_TYPES.GYOKU) {
+            // 玉を取ったプレイヤーの勝ち
+            this.gameResult = this.currentPlayer === PLAYER.SENTE ? 'sente_win' : 'gote_win';
+            this.updateGameState();
+            
+            // 勝利メッセージを表示
+            const winner = this.currentPlayer === PLAYER.SENTE ? '先手' : '後手';
+            setTimeout(() => {
+                alert(`${winner}の勝ちです！`);
+            }, 100);
+        }
     }
     
     /**
      * 次の手番へ
      */
     nextTurn() {
+        // ゲームが終了している場合は次のターンに進まない
+        if (this.gameResult !== null) {
+            return;
+        }
+        
         // プレイヤーを交代
         this.currentPlayer = this.currentPlayer === PLAYER.SENTE ? PLAYER.GOTE : PLAYER.SENTE;
         
@@ -283,47 +313,57 @@ class Game {
     }
     
     /**
-     * BOTの手を指す
+     * BOTに手を選択させる
      */
     makeBotMove() {
+        // AIの思考状態を更新
         this.aiThinking = true;
         this.updateGameState();
         
-        // 少し遅延を入れてBOTの思考をシミュレート
-        setTimeout(() => {
-            // 合法手をすべて取得
-            const allMoves = this.getAllPossibleMoves(PLAYER.GOTE);
+        // AIの思考を初期化
+        if (this.onAiThinkingUpdate) {
+            this.onAiThinkingUpdate('思考中...');
+        }
+        
+        // BOTのインスタンスを作成
+        const bot = new Bot(this);
+        
+        // 使用するモデルを選択
+        const modelKeys = Object.keys(LLM_MODELS);
+        const modelKey = modelKeys[Math.floor(Math.random() * modelKeys.length)];
+        
+        // BOTに手を選択させる
+        bot.selectMoveWithLLM(this.currentPlayer, modelKey, (move, thinking) => {
+            // AIの思考を表示
+            if (this.onAiThinkingUpdate) {
+                this.onAiThinkingUpdate(thinking);
+            }
             
-            // ランダムに1手選択
-            if (allMoves.length > 0) {
-                const randomIndex = Math.floor(Math.random() * allMoves.length);
-                const move = allMoves[randomIndex];
-                
+            // 手が選択された場合
+            if (move) {
                 if (move.type === 'move') {
                     // 駒の移動
                     this.movePiece(move.from, move.to, move.promote);
                 } else if (move.type === 'drop') {
                     // 持ち駒を打つ
-                    const pieceIndex = this.board.capturedPieces[PLAYER.GOTE].findIndex(
-                        p => p.type === move.pieceType
-                    );
+                    const capturedPieces = this.board.capturedPieces[this.currentPlayer];
+                    const pieceIndex = capturedPieces.findIndex(p => p.type === move.pieceType);
                     
                     if (pieceIndex !== -1) {
                         this.selectedCapturedPiece = {
-                            player: PLAYER.GOTE,
-                            index: pieceIndex,
-                            piece: this.board.capturedPieces[PLAYER.GOTE][pieceIndex]
+                            player: this.currentPlayer,
+                            index: pieceIndex
                         };
                         
-                        this.dropCapturedPiece(move.to);
-                        this.selectedCapturedPiece = null;
+                        this.dropCapturedPiece(move.to, true);
                     }
                 }
             }
             
+            // AIの思考状態を更新
             this.aiThinking = false;
-            this.nextTurn();
-        }, 1000);
+            this.updateGameState();
+        });
     }
     
     /**
@@ -494,17 +534,20 @@ class Game {
         }
         
         // 持ち駒を打つ
-        for (const piece of this.board.capturedPieces[player]) {
-            for (let row = 0; row < BOARD_SIZE.ROWS; row++) {
-                for (let col = 0; col < BOARD_SIZE.COLS; col++) {
-                    const pos = { row, col };
-                    
-                    if (MoveValidator.canDropPiece(this.board.board, pos, piece.type, player)) {
-                        allMoves.push({
-                            type: 'drop',
-                            to: pos,
-                            pieceType: piece.type
-                        });
+        if (this.board.capturedPieces[player] && Array.isArray(this.board.capturedPieces[player])) {
+            for (const piece of this.board.capturedPieces[player]) {
+                for (let row = 0; row < BOARD_SIZE.ROWS; row++) {
+                    for (let col = 0; col < BOARD_SIZE.COLS; col++) {
+                        const pos = { row, col };
+                        
+                        if (MoveValidator.canDropPiece(this.board.board, pos, piece.type, player)) {
+                            allMoves.push({
+                                type: 'drop',
+                                to: pos,
+                                pieceType: piece.type,
+                                player: player  // playerプロパティを追加
+                            });
+                        }
                     }
                 }
             }
@@ -604,7 +647,8 @@ class Game {
             const state = {
                 currentPlayer: this.currentPlayer,
                 aiThinking: this.aiThinking,
-                gameMode: this.gameMode
+                gameMode: this.gameMode,
+                gameResult: this.gameResult
             };
             
             this.onGameStateUpdate(state);

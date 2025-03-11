@@ -94,9 +94,10 @@ select {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-width: 350px;
 }
 
-.game-status, .game-record {
+.game-status, .game-record, .ai-thinking {
     padding: 15px;
     background-color: #fff;
     border: 1px solid #ddd;
@@ -104,7 +105,7 @@ select {
 }
 
 .record-container {
-    height: 400px;
+    height: 200px;
     overflow-y: auto;
     padding: 10px;
     border: 1px solid #eee;
@@ -178,18 +179,14 @@ select {
     border-radius: 4px;
 }
 
-/* AI Thinking Panel (for Phase 2) */
+/* AI Thinking Panel */
 .ai-thinking {
-    margin-top: 20px;
-    padding: 15px;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    display: none; /* Hidden initially */
+    display: block;
+    margin-bottom: 20px;
 }
 
-.ai-thinking pre {
-    max-height: 200px;
+.thinking-container {
+    height: 300px;
     overflow-y: auto;
     background-color: #f9f9f9;
     padding: 10px;
@@ -197,6 +194,7 @@ select {
     border-radius: 4px;
     font-family: monospace;
     white-space: pre-wrap;
+    margin-top: 10px;
 }
 
 /* Responsive Design */

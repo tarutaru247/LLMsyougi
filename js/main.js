@@ -99,12 +99,31 @@ document.addEventListener('DOMContentLoaded', () => {
                             game.movePiece(move.from, move.to, move.promote);
                         } else if (move.type === 'drop') {
                             // 持ち駒を打つ
-                            game.selectedCapturedPiece = {
-                                player: move.player,
-                                piece: { type: move.pieceType, player: move.player }
-                            };
-                            game.dropCapturedPiece(move.to, move.invalid);
-                            game.selectedCapturedPiece = null;
+                            // 持ち駒のインデックスを探す
+                            const capturedPieces = game.board.capturedPieces[move.player];
+                            
+                            // 持ち駒が初期化されているか確認
+                            if (!capturedPieces || !Array.isArray(capturedPieces)) {
+                                console.error(`持ち駒が正しく初期化されていません。player: ${move.player}`);
+                                // 持ち駒が初期化されていない場合は、初期化する
+                                if (!game.board.capturedPieces[move.player]) {
+                                    game.board.capturedPieces[move.player] = [];
+                                }
+                                // 持ち駒がないので処理をスキップ
+                                return;
+                            }
+                            
+                            const index = capturedPieces.findIndex(p => p.type === move.pieceType);
+                            
+                            if (index !== -1) {
+                                game.selectedCapturedPiece = {
+                                    player: move.player,
+                                    piece: { type: move.pieceType, player: move.player },
+                                    index: index
+                                };
+                                game.dropCapturedPiece(move.to, move.invalid);
+                                game.selectedCapturedPiece = null;
+                            }
                         }
                     }
                     

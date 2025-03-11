@@ -21,12 +21,10 @@ class UI {
         this.settingsModal = document.getElementById('settingsModal');
         this.closeModalButton = document.querySelector('.close');
         this.saveApiSettingsButton = document.getElementById('saveApiSettings');
+        this.aiThinkingElement = document.getElementById('aiThinking');
         
         // 成り駒ダイアログ
         this.promotionDialog = null;
-        
-        // AIの思考パネル
-        this.aiThinkingPanel = null;
         
         // イベントリスナーの設定
         this.setupEventListeners();
@@ -103,6 +101,11 @@ class UI {
         this.game.onCapturedPiecesUpdate = (capturedPieces) => {
             this.updateCapturedPieces();
         };
+
+        // AIの思考更新イベント
+        this.game.onAiThinkingUpdate = (content) => {
+            this.updateAiThinking(content);
+        };
     }
     
     /**
@@ -112,7 +115,14 @@ class UI {
     updateGameStatus(state) {
         let statusText = '';
         
-        if (state.aiThinking) {
+        if (state.gameResult) {
+            // ゲームが終了している場合
+            if (state.gameResult === 'sente_win') {
+                statusText = '先手の勝ちです！';
+            } else if (state.gameResult === 'gote_win') {
+                statusText = '後手の勝ちです！';
+            }
+        } else if (state.aiThinking) {
             statusText = 'BOTが思考中...';
         } else {
             const playerText = state.currentPlayer === PLAYER.SENTE ? '先手' : '後手';
@@ -357,52 +367,40 @@ class UI {
      * AIの思考パネルを作成
      */
     createAiThinkingPanel() {
-        // すでにパネルがある場合は何もしない
-        if (this.aiThinkingPanel) {
+        // 既に存在する場合は何もしない
+        if (this.aiThinkingElement) {
             return;
         }
-        
-        // パネルを作成
-        this.aiThinkingPanel = document.createElement('div');
-        this.aiThinkingPanel.className = 'ai-thinking';
-        
-        const title = document.createElement('h3');
-        title.textContent = 'AIの思考プロセス';
-        this.aiThinkingPanel.appendChild(title);
-        
-        const content = document.createElement('pre');
-        content.id = 'aiThinkingContent';
-        this.aiThinkingPanel.appendChild(content);
-        
-        // ゲーム情報の後に挿入
-        const gameInfo = document.querySelector('.game-info');
-        gameInfo.appendChild(this.aiThinkingPanel);
     }
     
     /**
-     * AIの思考内容を表示
+     * AIの思考を更新
      * @param {string} content - 思考内容
      */
     updateAiThinking(content) {
-        // パネルがなければ作成
-        if (!this.aiThinkingPanel) {
-            this.createAiThinkingPanel();
+        if (!this.aiThinkingElement) {
+            return;
         }
-        
+
         // 思考内容を表示
-        const aiThinkingContent = document.getElementById('aiThinkingContent');
-        aiThinkingContent.textContent = content;
+        this.aiThinkingElement.innerHTML = '';
         
-        // パネルを表示
-        this.aiThinkingPanel.style.display = 'block';
+        // 思考内容を整形して表示
+        const formattedContent = content.replace(/\n/g, '<br>');
+        this.aiThinkingElement.innerHTML = formattedContent;
+        
+        // スクロールを一番下に
+        this.aiThinkingElement.scrollTop = this.aiThinkingElement.scrollHeight;
     }
     
     /**
-     * AIの思考パネルを非表示
+     * AIの思考を非表示
      */
     hideAiThinking() {
-        if (this.aiThinkingPanel) {
-            this.aiThinkingPanel.style.display = 'none';
+        if (!this.aiThinkingElement) {
+            return;
         }
+        
+        this.aiThinkingElement.innerHTML = '';
     }
 }

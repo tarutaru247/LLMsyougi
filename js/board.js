@@ -196,20 +196,6 @@ class Board {
     
     /**
      * 駒を描画
-     */
-    drawPieces() {
-        for (let row = 0; row < BOARD_SIZE.ROWS; row++) {
-            for (let col = 0; col < BOARD_SIZE.COLS; col++) {
-                const piece = this.board[row][col];
-                if (piece.type !== PIECE_TYPES.EMPTY) {
-                    this.drawPiece(piece, row, col);
-                }
-            }
-        }
-    }
-    
-    /**
-     * 駒を描画
      * @param {Object} piece - 駒の情報
      * @param {number} row - 行番号
      * @param {number} col - 列番号
@@ -221,9 +207,18 @@ class Board {
         // 駒の背景
         this.ctx.fillStyle = '#f8c06c';
         this.ctx.beginPath();
-        this.ctx.moveTo(x, y - this.cellSize * 0.35);
-        this.ctx.lineTo(x + this.cellSize * 0.3, y + this.cellSize * 0.35);
-        this.ctx.lineTo(x - this.cellSize * 0.3, y + this.cellSize * 0.35);
+        
+        // 後手の駒は三角形も逆向きに
+        if (piece.player === PLAYER.GOTE) {
+            this.ctx.moveTo(x, y + this.cellSize * 0.35);
+            this.ctx.lineTo(x + this.cellSize * 0.3, y - this.cellSize * 0.35);
+            this.ctx.lineTo(x - this.cellSize * 0.3, y - this.cellSize * 0.35);
+        } else {
+            this.ctx.moveTo(x, y - this.cellSize * 0.35);
+            this.ctx.lineTo(x + this.cellSize * 0.3, y + this.cellSize * 0.35);
+            this.ctx.lineTo(x - this.cellSize * 0.3, y + this.cellSize * 0.35);
+        }
+        
         this.ctx.closePath();
         this.ctx.fill();
         
@@ -237,15 +232,32 @@ class Board {
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         
+        // 文字の位置を調整して重ならないようにする
+        const textOffsetY = piece.player === PLAYER.GOTE ? -5 : 5;
+        
         // 後手の駒は180度回転
         if (piece.player === PLAYER.GOTE) {
             this.ctx.save();
-            this.ctx.translate(x, y);
+            this.ctx.translate(x, y + textOffsetY);
             this.ctx.rotate(Math.PI);
             this.ctx.fillText(PIECE_NAMES[piece.type], 0, 0);
             this.ctx.restore();
         } else {
-            this.ctx.fillText(PIECE_NAMES[piece.type], x, y);
+            this.ctx.fillText(PIECE_NAMES[piece.type], x, y + textOffsetY);
+        }
+    }
+    
+    /**
+     * 駒を描画
+     */
+    drawPieces() {
+        for (let row = 0; row < BOARD_SIZE.ROWS; row++) {
+            for (let col = 0; col < BOARD_SIZE.COLS; col++) {
+                const piece = this.board[row][col];
+                if (piece.type !== PIECE_TYPES.EMPTY) {
+                    this.drawPiece(piece, row, col);
+                }
+            }
         }
     }
     
@@ -371,6 +383,11 @@ class Board {
         }
         
         // 持ち駒から該当する駒を探す
+        if (!this.capturedPieces[player] || !Array.isArray(this.capturedPieces[player])) {
+            console.error(`持ち駒が正しく初期化されていません。player: ${player}`);
+            return false;
+        }
+        
         const pieceIndex = this.capturedPieces[player].findIndex(p => p.type === pieceType);
         if (pieceIndex === -1) {
             return false;

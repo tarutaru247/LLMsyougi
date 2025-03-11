@@ -46,8 +46,11 @@ class Bot {
         const capturedPieces = this.game.board.getCapturedPieces();
         const gameHistory = this.game.gameHistory;
         
+        // 合法手リストを取得
+        const legalMoves = this.game.getAllPossibleMoves(player);
+        
         // LLMに送信するプロンプトを作成
-        const prompt = this.createPromptForLLM(player, boardState, capturedPieces, gameHistory);
+        const prompt = this.createPromptForLLM(player, boardState, capturedPieces, gameHistory, legalMoves);
         
         // LLMのAPIキーを取得
         const model = LLM_MODELS[modelKey];
@@ -61,23 +64,16 @@ class Bot {
             return;
         }
         
-        // LLMのAPIにリクエストを送信
-        this.sendRequestToLLM(model, apiKey, prompt)
+        // LLMのAPIにリクエストを送信（合法手リストを含める）
+        this.sendRequestToLLM(model, apiKey, prompt, legalMoves)
             .then(response => {
-                // レスポンスから手を抽出
-                const move = this.extractMoveFromResponse(response, player);
+                // レスポンスから手を抽出して合法手リストから対応する手を見つける
+                const move = this.extractMoveFromResponse(response, player, legalMoves);
                 
-                // 手が抽出できた場合は、その手を返す（有効性に関係なく）
+                // 手が抽出できた場合
                 if (move) {
-                    // 手が有効かどうかをチェック
-                    if (!this.isValidMove(move, player)) {
-                        move.invalid = true;
-                        this.thinking = false;
-                        callback(move, response + '\n\n※注意: AIが指した手は反則手です。');
-                    } else {
-                        this.thinking = false;
-                        callback(move, response);
-                    }
+                    this.thinking = false;
+                    callback(move, response);
                 } else {
                     // 手が抽出できなかった場合はランダムな手を選択
                     const randomMove = this.selectRandomMove(player);
@@ -96,14 +92,50 @@ class Bot {
     }
     
     /**
+     * 指定された手が合法手リストに含まれているかをチェック
+     * @param {Object} move - チェックする手
+     * @param {Array<Object>} legalMoves - 合法手リスト
+     * @returns {boolean} 合法手リストに含まれている場合はtrue
+     */
+    isMoveInLegalMovesList(move, legalMoves) {
+        if (!move || !legalMoves || legalMoves.length === 0) {
+            return false;
+        }
+        
+        return legalMoves.some(legalMove => {
+            // 手の種類が異なる場合はfalse
+            if (move.type !== legalMove.type) {
+                return false;
+            }
+            
+            if (move.type === 'move') {
+                // 駒の移動の場合
+                return move.from.row === legalMove.from.row && 
+                       move.from.col === legalMove.from.col && 
+                       move.to.row === legalMove.to.row && 
+                       move.to.col === legalMove.to.col && 
+                       move.promote === legalMove.promote;
+            } else if (move.type === 'drop') {
+                // 持ち駒を打つ場合
+                return move.pieceType === legalMove.pieceType && 
+                       move.to.row === legalMove.to.row && 
+                       move.to.col === legalMove.to.col;
+            }
+            
+            return false;
+        });
+    }
+    
+    /**
      * LLMに送信するプロンプトを作成
      * @param {number} player - プレイヤー
      * @param {Array<Array<Object>>} boardState - 盤面の状態
      * @param {Object} capturedPieces - 持ち駒の状態
      * @param {Array<Object>} gameHistory - 棋譜
+     * @param {Array<Object>} legalMoves - 合法手リスト
      * @returns {string} プロンプト
      */
-    createPromptForLLM(player, boardState, capturedPieces, gameHistory) {
+    createPromptForLLM(player, boardState, capturedPieces, gameHistory, legalMoves) {
         let prompt = '将棋の対局中です。あなたは';
         prompt += player === PLAYER.SENTE ? '先手（下手）' : '後手（上手）';
         prompt += 'として、次の一手を考えてください。\n\n';
@@ -161,15 +193,46 @@ class Bot {
             prompt += '\n';
         }
         
+        // 合法手リスト
+        prompt += '【合法手リスト】\n';
+        legalMoves.forEach((move, index) => {
+            let moveText = '';
+            if (move.type === 'move') {
+                // 駒の移動
+                const pieceName = PIECE_NAMES[move.pieceType];
+                const fromCol = 9 - move.from.col;
+                const fromRow = ['一', '二', '三', '四', '五', '六', '七', '八', '九'][move.from.row];
+                const toCol = 9 - move.to.col;
+                const toRow = ['一', '二', '三', '四', '五', '六', '七', '八', '九'][move.to.row];
+                
+                moveText = `${fromCol}${fromRow}${pieceName}→${toCol}${toRow}`;
+                
+                // 成る場合
+                if (move.promote) {
+                    moveText += '成';
+                }
+            } else if (move.type === 'drop') {
+                // 持ち駒を打つ
+                const pieceName = PIECE_NAMES[move.pieceType];
+                const toCol = 9 - move.to.col;
+                const toRow = ['一', '二', '三', '四', '五', '六', '七', '八', '九'][move.to.row];
+                
+                moveText = `${toCol}${toRow}${pieceName}打`;
+            }
+            
+            prompt += `${index + 1}. ${moveText}\n`;
+        });
+        prompt += '\n';
+        
         // 指示
-        prompt += '思考過程を簡潔に説明してください。\n';
+        prompt += '【指示】\n';
+        prompt += '以下の合法手リストから最適な手を1つ選んでください。必ず合法手リストに含まれる手を選択してください。\n';
+        prompt += '思考過程を簡潔に説明し、選択した手の理由も述べてください。\n';
         prompt += '次の一手を「指し手:」に続けて、以下の形式で答えてください。\n';
         prompt += '例1: 指し手:７六歩 (7筋の6段目に歩を進める)\n';
         prompt += '例2: 指し手:８八銀 (8筋の8段目に銀を動かす)\n';
         prompt += '例3: 指し手:２二角成 (2筋の2段目に角を動かして成る)\n';
         prompt += '例4: 指し手:３三桂打 (3筋の3段目に持ち駒の桂馬を打つ)\n\n';
-        
-        
         
         return prompt;
     }
@@ -246,22 +309,23 @@ class Bot {
      * @param {Object} model - モデルの情報
      * @param {string} apiKey - APIキー
      * @param {string} prompt - プロンプト
+     * @param {Array<Object>} legalMoves - 合法手リスト
      * @returns {Promise<string>} レスポンス
      */
-    async sendRequestToLLM(model, apiKey, prompt) {
+    async sendRequestToLLM(model, apiKey, prompt, legalMoves) {
         let response;
         
         switch (model.name) {
             case 'GPT-4o':
             case 'o3-mini':
-                response = await this.sendRequestToOpenAI(model, apiKey, prompt);
+                response = await this.sendRequestToOpenAI(model, apiKey, prompt, legalMoves);
                 break;
             case 'Claude 3.7 Sonnet':
-                response = await this.sendRequestToClaude(model, apiKey, prompt);
+                response = await this.sendRequestToClaude(model, apiKey, prompt, legalMoves);
                 break;
             case 'Gemini 2.0 Flash':
             case 'Gemini 2.0 Pro Exp':
-                response = await this.sendRequestToGemini(model, apiKey, prompt);
+                response = await this.sendRequestToGemini(model, apiKey, prompt, legalMoves);
                 break;
             default:
                 throw new Error(`未対応のモデル: ${model.name}`);
@@ -275,9 +339,10 @@ class Bot {
      * @param {Object} model - モデルの情報
      * @param {string} apiKey - APIキー
      * @param {string} prompt - プロンプト
+     * @param {Array<Object>} legalMoves - 合法手リスト
      * @returns {Promise<string>} レスポンス
      */
-    async sendRequestToOpenAI(model, apiKey, prompt) {
+    async sendRequestToOpenAI(model, apiKey, prompt, legalMoves) {
         const response = await fetch(model.apiEndpoint, {
             method: 'POST',
             headers: {
@@ -287,7 +352,10 @@ class Bot {
             body: JSON.stringify({
                 model: model.model,
                 messages: [
-                    { role: 'system', content: 'あなたは将棋の差し手を考えるAIです。盤面を把握し次の一手を考えてください。考えた手が実現可能であり反則でないことが最重要事項です。' },
+                    { 
+                        role: 'system', 
+                        content: 'あなたは将棋の差し手を考えるAIです。盤面を把握し次の一手を考えてください。必ず与えられた合法手リストから手を選んでください。' 
+                    },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.7
@@ -308,9 +376,10 @@ class Bot {
      * @param {Object} model - モデルの情報
      * @param {string} apiKey - APIキー
      * @param {string} prompt - プロンプト
+     * @param {Array<Object>} legalMoves - 合法手リスト
      * @returns {Promise<string>} レスポンス
      */
-    async sendRequestToClaude(model, apiKey, prompt) {
+    async sendRequestToClaude(model, apiKey, prompt, legalMoves) {
         const response = await fetch(model.apiEndpoint, {
             method: 'POST',
             headers: {
@@ -321,6 +390,10 @@ class Bot {
             body: JSON.stringify({
                 model: model.model,
                 messages: [
+                    { 
+                        role: 'system',
+                        content: 'あなたは将棋の差し手を考えるAIです。盤面を把握し次の一手を考えてください。必ず与えられた合法手リストから手を選んでください。'
+                    },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.7,
@@ -342,9 +415,10 @@ class Bot {
      * @param {Object} model - モデルの情報
      * @param {string} apiKey - APIキー
      * @param {string} prompt - プロンプト
+     * @param {Array<Object>} legalMoves - 合法手リスト
      * @returns {Promise<string>} レスポンス
      */
-    async sendRequestToGemini(model, apiKey, prompt) {
+    async sendRequestToGemini(model, apiKey, prompt, legalMoves) {
         const response = await fetch(`${model.apiEndpoint}?key=${apiKey}`, {
             method: 'POST',
             headers: {
@@ -354,6 +428,9 @@ class Bot {
                 contents: [
                     {
                         parts: [
+                            { 
+                                text: 'あなたは将棋の差し手を考えるAIです。盤面を把握し次の一手を考えてください。必ず与えられた合法手リストから手を選んでください。' 
+                            },
                             { text: prompt }
                         ]
                     }
@@ -375,29 +452,32 @@ class Bot {
     }
     
     /**
-     * レスポンスから手を抽出
+     * レスポンスから手を抽出し、合法手リストから対応する手を見つける
      * @param {string} response - レスポンス
      * @param {number} player - プレイヤー
+     * @param {Array<Object>} legalMoves - 合法手リスト
      * @returns {Object|null} 抽出された手
      */
-    extractMoveFromResponse(response, player) {
+    extractMoveFromResponse(response, player, legalMoves) {
         // 「指し手:」または「指し手：」の後の部分を抽出（全角コロンにも対応）
         const moveMatch = response.match(/指し手[:|：]\s*(.+?)(?:$|\n)/);
         if (!moveMatch) {
+            console.log("「指し手:」が見つかりませんでした");
             return null;
         }
         
         const moveText = moveMatch[1].trim();
+        console.log("抽出された手のテキスト:", moveText);
         
         // 駒打ちの場合（数字は全角でも可能に）
-        const dropMatch = moveText.match(/[１-９1-9][一二三四五六七八九](.+)打/);
+        const dropMatch = moveText.match(/([１-９1-9])([一二三四五六七八九])([歩香桂銀金角飛玉と馬龍]*)打/);
         if (dropMatch) {
-            const colMatch = moveText.match(/[１-９1-9]/);
-            const col = 9 - (colMatch[0] >= '１' && colMatch[0] <= '９' ? 
-                colMatch[0].charCodeAt(0) - '１'.charCodeAt(0) + 1 : 
-                parseInt(colMatch[0]));
-            const row = ['一', '二', '三', '四', '五', '六', '七', '八', '九'].indexOf(dropMatch[1]);
-            const pieceName = dropMatch[2];
+            const colMatch = dropMatch[1];
+            const col = 9 - (colMatch >= '１' && colMatch <= '９' ? 
+                colMatch.charCodeAt(0) - '１'.charCodeAt(0) + 1 : 
+                parseInt(colMatch));
+            const row = ['一', '二', '三', '四', '五', '六', '七', '八', '九'].indexOf(dropMatch[2]);
+            const pieceName = dropMatch[3];
             
             // 駒の種類を特定
             let pieceType = null;
@@ -409,21 +489,92 @@ class Bot {
             }
             
             if (pieceType === null) {
+                console.log("駒打ちの駒種類が特定できませんでした:", pieceName);
                 return null;
             }
             
-            return {
-                type: 'drop',
-                player,
-                pieceType,
-                to: { row, col }
-            };
+            // 合法手リストから対応する手を探す
+            for (const move of legalMoves) {
+                if (move.type === 'drop' && 
+                    move.pieceType === pieceType && 
+                    move.to.row === row && 
+                    move.to.col === col) {
+                    console.log("合法手リストから対応する駒打ちが見つかりました");
+                    return move;
+                }
+            }
+            
+            console.log("合法手リストに対応する駒打ちが見つかりませんでした");
+            return null;
         }
         
-        // 駒の移動の場合（数字は全角でも可能に）
-        const moveRegex = /([１-９1-9])([一二三四五六七八九])(.+?)(?:成)?$/;
+        // 矢印を含む移動形式（例: 6一金→7二）
+        const arrowMoveRegex = /([１-９1-9])([一二三四五六七八九])([歩香桂銀金角飛玉と馬龍]*)→([１-９1-9])([一二三四五六七八九])(?:成)?/;
+        const arrowMatch = moveText.match(arrowMoveRegex);
+        if (arrowMatch) {
+            // 移動元の座標
+            const fromColMatch = arrowMatch[1];
+            const fromCol = 9 - (fromColMatch >= '１' && fromColMatch <= '９' ? 
+                fromColMatch.charCodeAt(0) - '１'.charCodeAt(0) + 1 : 
+                parseInt(fromColMatch));
+            const fromRow = ['一', '二', '三', '四', '五', '六', '七', '八', '九'].indexOf(arrowMatch[2]);
+            
+            // 移動先の座標
+            const toColMatch = arrowMatch[4];
+            const toCol = 9 - (toColMatch >= '１' && toColMatch <= '９' ? 
+                toColMatch.charCodeAt(0) - '１'.charCodeAt(0) + 1 : 
+                parseInt(toColMatch));
+            const toRow = ['一', '二', '三', '四', '五', '六', '七', '八', '九'].indexOf(arrowMatch[5]);
+            
+            // 駒の種類
+            const pieceName = arrowMatch[3];
+            const promote = moveText.includes('成');
+            
+            console.log("矢印形式の解析結果:", {
+                fromCol,
+                fromRow,
+                toCol,
+                toRow,
+                pieceName,
+                promote
+            });
+            
+            // 駒の種類を特定
+            let pieceType = null;
+            for (const [type, name] of Object.entries(PIECE_NAMES)) {
+                if (name === pieceName) {
+                    pieceType = parseInt(type);
+                    break;
+                }
+            }
+            
+            if (pieceType === null) {
+                console.log("移動の駒種類が特定できませんでした:", pieceName);
+                return null;
+            }
+            
+            // 合法手リストから対応する手を探す
+            for (const move of legalMoves) {
+                if (move.type === 'move' && 
+                    move.pieceType === pieceType && 
+                    move.from.row === fromRow && 
+                    move.from.col === fromCol && 
+                    move.to.row === toRow && 
+                    move.to.col === toCol && 
+                    move.promote === promote) {
+                    console.log("合法手リストから対応する移動が見つかりました:", move);
+                    return move;
+                }
+            }
+            
+            console.log("合法手リストに対応する移動が見つかりませんでした（矢印形式）");
+        }
+        
+        // 通常の移動形式（例: 7六歩）
+        const moveRegex = /([１-９1-9])([一二三四五六七八九])([歩香桂銀金角飛玉と馬龍]*)(?:成)?/;
         const match = moveText.match(moveRegex);
         if (!match) {
+            console.log("移動の正規表現にマッチしませんでした:", moveText);
             return null;
         }
         
@@ -435,6 +586,14 @@ class Bot {
         const pieceName = match[3];
         const promote = moveText.includes('成');
         
+        console.log("通常形式の解析結果:", {
+            colMatch,
+            toCol,
+            toRow,
+            pieceName,
+            promote
+        });
+        
         // 駒の種類を特定
         let pieceType = null;
         for (const [type, name] of Object.entries(PIECE_NAMES)) {
@@ -445,40 +604,24 @@ class Bot {
         }
         
         if (pieceType === null) {
+            console.log("移動の駒種類が特定できませんでした:", pieceName);
             return null;
         }
         
-        // 盤面上で該当する駒を探す
-        const possibleFromPositions = [];
-        for (let row = 0; row < BOARD_SIZE.ROWS; row++) {
-            for (let col = 0; col < BOARD_SIZE.COLS; col++) {
-                const piece = this.game.board.board[row][col];
-                if (piece.type === pieceType && piece.player === player) {
-                    const fromPos = { row, col };
-                    const toPos = { row: toRow, col: toCol };
-                    
-                    if (MoveValidator.isValidMove(this.game.board.board, fromPos, toPos, player)) {
-                        possibleFromPositions.push(fromPos);
-                    }
-                }
+        // 合法手リストから対応する手を探す
+        for (const move of legalMoves) {
+            if (move.type === 'move' && 
+                move.pieceType === pieceType && 
+                move.to.row === toRow && 
+                move.to.col === toCol && 
+                move.promote === promote) {
+                console.log("合法手リストから対応する移動が見つかりました:", move);
+                return move;
             }
         }
         
-        if (possibleFromPositions.length === 0) {
-            return null;
-        }
-        
-        // 複数の候補がある場合は最初のものを選択
-        const fromPos = possibleFromPositions[0];
-        
-        return {
-            type: 'move',
-            player,
-            from: fromPos,
-            to: { row: toRow, col: toCol },
-            pieceType,
-            promote
-        };
+        console.log("合法手リストに対応する移動が見つかりませんでした（通常形式）");
+        return null;
     }
     
     /**
