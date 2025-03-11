@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ブラウザ将棋</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ブラウザ将棋</h1>
+            <div class="game-controls">
+                <button id="newGameBtn">新規対局</button>
+                <button id="undoBtn">待った</button>
+                <select id="gameMode">
+                    <option value="human">人間 vs 人間</option>
+                    <option value="bot">人間 vs BOT</option>
+                </select>
+                <button id="settingsBtn">設定</button>
+            </div>
+        </header>
+        
+        <div class="game-container">
+            <div class="board-container">
+                <div class="captured-pieces top">
+                    <h3>後手の持ち駒</h3>
+                    <div id="capturedPiecesGote" class="pieces-container"></div>
+                </div>
+                
+                <canvas id="shogiBoard" width="450" height="500"></canvas>
+                
+                <div class="captured-pieces bottom">
+                    <h3>先手の持ち駒</h3>
+                    <div id="capturedPiecesSente" class="pieces-container"></div>
+                </div>
+            </div>
+            
+            <div class="game-info">
+                <div class="game-status">
+                    <h3>ゲーム状態</h3>
+                    <p id="gameStatus">先手の手番です</p>
+                </div>
+                
+                <div class="game-record">
+                    <h3>棋譜</h3>
+                    <div id="gameRecord" class="record-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>API設定</h2>
+            <div class="api-settings">
+                <div class="api-setting">
+                    <label for="gpt4oKey">GPT-4o API Key:</label>
+                    <input type="password" id="gpt4oKey" placeholder="APIキーを入力">
+                </div>
+                <div class="api-setting">
+                    <label for="o3miniKey">o3-mini API Key:</label>
+                    <input type="password" id="o3miniKey" placeholder="APIキーを入力">
+                </div>
+                <div class="api-setting">
+                    <label for="claudeKey">Claude 3.7 Sonnet API Key:</label>
+                    <input type="password" id="claudeKey" placeholder="APIキーを入力">
+                </div>
+                <div class="api-setting">
+                    <label for="geminiFlashKey">Gemini 2.0 Flash API Key:</label>
+                    <input type="password" id="geminiFlashKey" placeholder="APIキーを入力">
+                </div>
+                <div class="api-setting">
+                    <label for="geminiProKey">Gemini 2.0 Pro Exp API Key:</label>
+                    <input type="password" id="geminiProKey" placeholder="APIキーを入力">
+                </div>
+                <button id="saveApiSettings">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/pieces.js"></script>
+    <script src="js/board.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/bot.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
