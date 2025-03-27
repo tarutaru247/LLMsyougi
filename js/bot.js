@@ -54,7 +54,6 @@ class Bot {
         
         // LLMのAPIキーを取得 (Settingsクラス経由で取得するように修正)
         const model = LLM_MODELS[modelKey];
-        // const apiKey = localStorage.getItem(model.keyName); // 直接localStorageを参照しない
         const apiKey = this.game.settings.getApiKey(modelKey); // Settingsインスタンスから取得
 
         if (!apiKey) {
@@ -532,10 +531,12 @@ class Bot {
      * @returns {Promise<string>} レスポンス
      */
     async sendRequestToGemini(model, apiKey, prompt, legalMoves) {
-        const response = await fetch(`${model.apiEndpoint}?key=${apiKey}`, {
+        // APIキーをURLパラメータではなくヘッダーで送信するように修正
+        const response = await fetch(model.apiEndpoint, { // URLから ?key= を削除
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey // ヘッダーにAPIキーを追加
             },
             body: JSON.stringify({
                 contents: [
