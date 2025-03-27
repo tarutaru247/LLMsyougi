@@ -324,7 +324,7 @@ class Bot {
                 response = await this.sendRequestToClaude(model, apiKey, prompt, legalMoves);
                 break;
             case 'Gemini 2.0 Flash':
-            case 'Gemini 2.0 Pro Exp':
+            case 'Gemini 2.5 Pro exp (03-25)': // モデル名を constants.js と一致させる
                 response = await this.sendRequestToGemini(model, apiKey, prompt, legalMoves);
                 break;
             default:
@@ -343,23 +343,31 @@ class Bot {
      * @returns {Promise<string>} レスポンス
      */
     async sendRequestToOpenAI(model, apiKey, prompt, legalMoves) {
+        // リクエストボディの基本構造を作成
+        const requestBody = {
+            model: model.model,
+            messages: [
+                { 
+                    role: 'system', 
+                    content: 'あなたは将棋の差し手を考えるAIです。盤面を把握し次の一手を考えてください。必ず与えられた合法手リストから手を選んでください。' 
+                },
+                { role: 'user', content: prompt }
+            ],
+            stream: true // ストリーミングを有効化
+        };
+        
+        // o3-miniモデル以外の場合はtemperatureパラメータを追加
+        if (model.model !== 'o3-mini') {
+            requestBody.temperature = 0.7;
+        }
+        
         const response = await fetch(model.apiEndpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`
             },
-            body: JSON.stringify({
-                model: model.model,
-                messages: [
-                    { 
-                        role: 'system', 
-                        content: 'あなたは将棋の差し手を考えるAIです。盤面を把握し次の一手を考えてください。必ず与えられた合法手リストから手を選んでください。' 
-                    },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7
-            })
+            body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) {
@@ -367,8 +375,61 @@ class Bot {
             throw new Error(`OpenAI API error: ${error.error.message}`);
         }
         
-        const data = await response.json();
-        return data.choices[0].message.content;
+        // ストリーミングレスポンスを処理
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let fullContent = '';
+        let buffer = '';
+        
+        // AIの思考を初期化
+        if (this.game && this.game.onAiThinkingUpdate) {
+            this.game.onAiThinkingUpdate('思考中...');
+        }
+        
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                // バッファにデータを追加
+                buffer += decoder.decode(value, { stream: true });
+                
+                // データラインを処理
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+                
+                for (const line of lines) {
+                    if (line.trim() === '') continue;
+                    if (line.trim() === 'data: [DONE]') continue;
+                    
+                    try {
+                        // "data: "プレフィックスを削除
+                        const jsonStr = line.replace(/^data: /, '').trim();
+                        if (!jsonStr) continue;
+                        
+                        const json = JSON.parse(jsonStr);
+                        if (!json.choices || !json.choices[0]) continue;
+                        
+                        const { delta } = json.choices[0];
+                        if (!delta || !delta.content) continue;
+                        
+                        // コンテンツを追加
+                        fullContent += delta.content;
+                        
+                        // AIの思考を更新
+                        if (this.game && this.game.onAiThinkingUpdate) {
+                            this.game.onAiThinkingUpdate(fullContent);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing JSON from stream:', e);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error reading stream:', error);
+        }
+        
+        return fullContent;
     }
     
     /**
@@ -397,7 +458,8 @@ class Bot {
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.7,
-                max_tokens: 1000
+                max_tokens: 1000,
+                stream: true // ストリーミングを有効化
             })
         });
         
@@ -406,8 +468,61 @@ class Bot {
             throw new Error(`Claude API error: ${error.error.message}`);
         }
         
-        const data = await response.json();
-        return data.content[0].text;
+        // ストリーミングレスポンスを処理
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let fullContent = '';
+        let buffer = '';
+        
+        // AIの思考を初期化
+        if (this.game && this.game.onAiThinkingUpdate) {
+            this.game.onAiThinkingUpdate('思考中...');
+        }
+        
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                // バッファにデータを追加
+                buffer += decoder.decode(value, { stream: true });
+                
+                // データラインを処理
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+                
+                for (const line of lines) {
+                    if (line.trim() === '') continue;
+                    if (line.trim() === 'data: [DONE]') continue;
+                    
+                    try {
+                        // "data: "プレフィックスを削除
+                        const jsonStr = line.replace(/^data: /, '').trim();
+                        if (!jsonStr) continue;
+                        
+                        const json = JSON.parse(jsonStr);
+                        if (!json.type || json.type !== 'content_block_delta') continue;
+                        
+                        const delta = json.delta?.text;
+                        if (!delta) continue;
+                        
+                        // コンテンツを追加
+                        fullContent += delta;
+                        
+                        // AIの思考を更新
+                        if (this.game && this.game.onAiThinkingUpdate) {
+                            this.game.onAiThinkingUpdate(fullContent);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing JSON from stream:', e);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error reading stream:', error);
+        }
+        
+        return fullContent;
     }
     
     /**
@@ -434,21 +549,59 @@ class Bot {
                             { text: prompt }
                         ]
                     }
-                ],
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 1000
-                }
+                ]
+                // generationConfig を一旦削除して試す
+                // generationConfig: {
+                //     temperature: 0.7,
+                //     maxOutputTokens: 1000
+                // }
             })
         });
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(`Gemini API error: ${error.error.message}`);
+            console.error('Gemini API Response (Error):', error); // エラーレスポンスを出力
+            throw new Error(`Gemini API error: ${error.error?.message || 'Unknown error'}`); // エラーメッセージをより安全に取得
         }
         
-        const data = await response.json();
-        return data.candidates[0].content.parts[0].text;
+        // レスポンスを直接JSONとして解析
+        const json = await response.json();
+        console.log('Gemini API Response (Success - Full):', json); // 成功レスポンス全体を出力
+        console.log('Gemini API Response (Success - Candidates):', json.candidates); // candidates の中身を出力
+
+        // レスポンス形式のチェックをさらに詳細にする
+        const candidate = json.candidates?.[0];
+        if (!candidate) {
+            console.error('Invalid response format: No candidates found. Full response:', json);
+            throw new Error('Invalid response format from Gemini API: No candidates.');
+        }
+
+        const content = candidate.content;
+        if (!content) {
+            // finishReason があれば表示する (例: SAFETY)
+            const finishReason = candidate.finishReason;
+            console.error(`Invalid response format: No content found in candidate. Finish reason: ${finishReason || 'N/A'}. Full candidate:`, candidate);
+            throw new Error(`Invalid response format from Gemini API: No content. Finish reason: ${finishReason || 'N/A'}`);
+        }
+
+        const part = content.parts?.[0];
+        if (!part) {
+            console.error('Invalid response format: No parts found in content. Full content:', content);
+            throw new Error('Invalid response format from Gemini API: No parts.');
+        }
+
+        const text = part.text;
+        if (typeof text !== 'string') { // textが文字列であることを確認
+            console.error('Invalid response format: Text part not found or not a string. Full part:', part);
+            throw new Error('Invalid response format from Gemini API: Text is not a string.');
+        }
+        
+        // AIの思考を更新
+        if (this.game && this.game.onAiThinkingUpdate) {
+            this.game.onAiThinkingUpdate(text);
+        }
+        
+        return text;
     }
     
     /**

@@ -8,11 +8,11 @@ class Settings {
     constructor() {
         // APIキーの設定
         this.apiKeys = {
-            gpt4o: null,
-            o3mini: null,
-            claude: null,
-            geminiFlash: null,
-            geminiPro: null
+            gpt4oKey: null,
+            o3miniKey: null,
+            claudeKey: null,
+            geminiFlashKey: null,
+            geminiProKey: null
         };
         
         // LLMモデルの設定

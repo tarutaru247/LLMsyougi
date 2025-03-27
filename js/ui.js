@@ -123,7 +123,7 @@ class UI {
                 statusText = '後手の勝ちです！';
             }
         } else if (state.aiThinking) {
-            statusText = 'BOTが思考中...';
+            statusText = 'AIが思考中...';
         } else {
             const playerText = state.currentPlayer === PLAYER.SENTE ? '先手' : '後手';
             statusText = `${playerText}の手番です`;
@@ -338,6 +338,10 @@ class UI {
             const key = localStorage.getItem(model.keyName);
             if (key) {
                 document.getElementById(model.keyName).value = key;
+                // SettingsクラスのapiKeysも更新
+                if (window.settings) {
+                    window.settings.apiKeys[model.keyName] = key;
+                }
             }
         });
     }
@@ -351,8 +355,16 @@ class UI {
             const key = document.getElementById(model.keyName).value;
             if (key) {
                 localStorage.setItem(model.keyName, key);
+                // SettingsクラスのapiKeysも更新
+                if (window.settings) {
+                    window.settings.apiKeys[model.keyName] = key;
+                }
             } else {
                 localStorage.removeItem(model.keyName);
+                // SettingsクラスのapiKeysも更新
+                if (window.settings) {
+                    window.settings.apiKeys[model.keyName] = null;
+                }
             }
         });
         

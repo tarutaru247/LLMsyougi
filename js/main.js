@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 設定の初期化
     const settings = new Settings();
+    // グローバルに公開
+    window.settings = settings;
     
     // LLMモデル選択UIの作成
     const gameControls = document.querySelector('.game-controls');

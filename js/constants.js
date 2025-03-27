@@ -319,9 +319,9 @@ const LLM_MODELS = {
         keyName: 'geminiFlashKey'
     },
     GEMINI_PRO: {
-        name: 'Gemini 2.0 Pro Exp',
-        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent',
-        model: 'gemini-2.0-pro-exp',
-        keyName: 'geminiProKey'
+        name: 'Gemini 2.5 Pro exp (03-25)', // モデル名を指定されたバージョンに合わせて変更
+        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent', // エンドポイントを指定されたバージョンに更新
+        model: 'gemini-2.5-pro-exp-03-25', // モデル識別子を指定されたバージョンに更新
+        keyName: 'geminiProKey' // キー名は変更しない
     }
 };

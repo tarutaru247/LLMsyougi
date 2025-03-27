@@ -15,6 +15,7 @@ class Game {
         this.isPromotionDialogOpen = false; // 成り駒ダイアログの表示状態
         this.pendingMove = null; // 成り駒ダイアログ表示中の移動情報
         this.selectedCapturedPiece = null; // 選択された持ち駒
+        this.isBrowsingHistory = false; // 棋譜閲覧中フラグ
         
         // ボードのイベントハンドラを設定
         this.board.onCellClick = this.handleCellClick.bind(this);
@@ -47,6 +48,7 @@ class Game {
         this.gameHistory = [];
         this.currentMoveIndex = -1;
         this.gameResult = null; // ゲーム結果をリセット
+        this.isBrowsingHistory = false; // フラグもリセット
         this.updateGameState();
         this.board.draw();
         
@@ -84,7 +86,8 @@ class Game {
         }
         
         // 棋譜再生中の場合は操作を無視
-        if (this.currentMoveIndex < this.gameHistory.length - 1) {
+        // if (this.currentMoveIndex < this.gameHistory.length - 1) { // 古いチェック
+        if (this.isBrowsingHistory) { // 新しいチェック
             return;
         }
         
@@ -186,7 +189,8 @@ class Game {
         }
         
         // 棋譜再生中の場合は操作を無視
-        if (this.currentMoveIndex < this.gameHistory.length - 1) {
+        // if (this.currentMoveIndex < this.gameHistory.length - 1) { // 古いチェック
+        if (this.isBrowsingHistory) { // 新しいチェック
             return;
         }
         
@@ -565,6 +569,7 @@ class Game {
         if (this.currentMoveIndex < this.gameHistory.length - 1) {
             this.gameHistory = this.gameHistory.slice(0, this.currentMoveIndex + 1);
         }
+        this.isBrowsingHistory = false; // 新しい手が記録されるので閲覧モード解除
         
         // 棋譜に追加
         this.gameHistory.push({
@@ -589,9 +594,9 @@ class Game {
         if (index < -1 || index >= this.gameHistory.length) {
             return;
         }
-        
-        this.currentMoveIndex = index;
-        
+
+        // this.currentMoveIndex = index; // この行を削除またはコメントアウト
+
         if (index === -1) {
             // 初期局面
             this.board.initializeBoard();
@@ -605,6 +610,9 @@ class Game {
             // 次のプレイヤーを設定
             this.currentPlayer = move.player === PLAYER.SENTE ? PLAYER.GOTE : PLAYER.SENTE;
         }
+
+        // 棋譜閲覧状態を更新
+        this.isBrowsingHistory = (index < this.gameHistory.length - 1);
         
         this.board.draw();
         this.updateGameState();
@@ -633,11 +641,24 @@ class Game {
         if (this.isPromotionDialogOpen) {
             return;
         }
-        
-        // 一手前の局面を再現
-        this.replayMove(this.currentMoveIndex - 1);
+
+        // ゲームが終了している場合は、結果をリセットして一手戻る
+        if (this.gameResult !== null) {
+            this.gameResult = null;
+        }
+
+        // 一手前の局面を再現するためのインデックス
+        const targetIndex = this.currentMoveIndex - 1;
+        this.replayMove(targetIndex); // targetIndex の局面を再現
+
+        // currentMoveIndex を更新して、次の手が指せる状態にする
+        this.currentMoveIndex = targetIndex;
+        this.isBrowsingHistory = false; // undo後は操作可能にする
+
+        // ゲーム状態を更新 (replayMove内で呼ばれるが、念のため)
+        this.updateGameState();
     }
-    
+
     /**
      * ゲーム状態を更新
      */

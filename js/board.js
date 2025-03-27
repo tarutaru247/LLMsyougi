@@ -205,37 +205,62 @@ class Board {
         const y = this.boardMargin + row * this.cellSize + this.cellSize / 2;
         
         // 駒の背景
-        this.ctx.fillStyle = '#f8c06c';
+        const pieceWidth = this.cellSize * 0.8;
+        const pieceHeight = this.cellSize * 0.9;
+        const cornerRadius = this.cellSize * 0.1;
+
+        this.ctx.fillStyle = '#f0d9b5'; // 少し明るい木目調の色
+        this.ctx.strokeStyle = '#8b4513'; // 濃い茶色の枠線
+        this.ctx.lineWidth = 1.5;
+
         this.ctx.beginPath();
-        
-        // 後手の駒は三角形も逆向きに
+
         if (piece.player === PLAYER.GOTE) {
-            this.ctx.moveTo(x, y + this.cellSize * 0.35);
-            this.ctx.lineTo(x + this.cellSize * 0.3, y - this.cellSize * 0.35);
-            this.ctx.lineTo(x - this.cellSize * 0.3, y - this.cellSize * 0.35);
+             // 後手の駒 (下向きの五角形) - 修正: 先手の描画ロジックをこちらに移動
+            this.ctx.moveTo(x - pieceWidth / 2, y - pieceHeight / 2 + cornerRadius);
+            this.ctx.quadraticCurveTo(x - pieceWidth / 2, y - pieceHeight / 2, x - pieceWidth / 2 + cornerRadius, y - pieceHeight / 2);
+            this.ctx.lineTo(x + pieceWidth / 2 - cornerRadius, y - pieceHeight / 2);
+            this.ctx.quadraticCurveTo(x + pieceWidth / 2, y - pieceHeight / 2, x + pieceWidth / 2, y - pieceHeight / 2 + cornerRadius);
+            this.ctx.lineTo(x + pieceWidth / 2, y + pieceHeight / 2 - cornerRadius * 2); // 肩の部分を少し上げる
+            this.ctx.quadraticCurveTo(x + pieceWidth / 2, y + pieceHeight / 2 - cornerRadius, x + pieceWidth / 2 - cornerRadius, y + pieceHeight / 2 - cornerRadius);
+            this.ctx.lineTo(x, y + pieceHeight / 2); // 頂点
+            this.ctx.lineTo(x - pieceWidth / 2 + cornerRadius, y + pieceHeight / 2 - cornerRadius);
+            this.ctx.quadraticCurveTo(x - pieceWidth / 2, y + pieceHeight / 2 - cornerRadius, x - pieceWidth / 2, y + pieceHeight / 2 - cornerRadius * 2);
+            this.ctx.closePath();
         } else {
-            this.ctx.moveTo(x, y - this.cellSize * 0.35);
-            this.ctx.lineTo(x + this.cellSize * 0.3, y + this.cellSize * 0.35);
-            this.ctx.lineTo(x - this.cellSize * 0.3, y + this.cellSize * 0.35);
+             // 先手の駒 (上向きの五角形) - 修正: 後手の描画ロジックをこちらに移動
+            this.ctx.moveTo(x - pieceWidth / 2, y + pieceHeight / 2 - cornerRadius);
+            this.ctx.quadraticCurveTo(x - pieceWidth / 2, y + pieceHeight / 2, x - pieceWidth / 2 + cornerRadius, y + pieceHeight / 2);
+            this.ctx.lineTo(x + pieceWidth / 2 - cornerRadius, y + pieceHeight / 2);
+            this.ctx.quadraticCurveTo(x + pieceWidth / 2, y + pieceHeight / 2, x + pieceWidth / 2, y + pieceHeight / 2 - cornerRadius);
+            this.ctx.lineTo(x + pieceWidth / 2, y - pieceHeight / 2 + cornerRadius * 2); // 肩の部分を少し下げる
+            this.ctx.quadraticCurveTo(x + pieceWidth / 2, y - pieceHeight / 2 + cornerRadius, x + pieceWidth / 2 - cornerRadius, y - pieceHeight / 2 + cornerRadius);
+            this.ctx.lineTo(x, y - pieceHeight / 2); // 頂点
+            this.ctx.lineTo(x - pieceWidth / 2 + cornerRadius, y - pieceHeight / 2 + cornerRadius);
+            this.ctx.quadraticCurveTo(x - pieceWidth / 2, y - pieceHeight / 2 + cornerRadius, x - pieceWidth / 2, y - pieceHeight / 2 + cornerRadius * 2);
+            this.ctx.closePath();
         }
-        
-        this.ctx.closePath();
+
         this.ctx.fill();
-        
-        this.ctx.strokeStyle = '#000';
-        this.ctx.lineWidth = 1;
         this.ctx.stroke();
-        
+
         // 駒の文字
-        this.ctx.fillStyle = '#000';
-        this.ctx.font = '20px serif';
+        // 成り駒かどうかを判定
+        const isPromoted = [
+            PIECE_TYPES.PROMOTED_ROOK, PIECE_TYPES.PROMOTED_BISHOP,
+            PIECE_TYPES.PROMOTED_LANCE, PIECE_TYPES.PROMOTED_KNIGHT,
+            PIECE_TYPES.PROMOTED_SILVER, PIECE_TYPES.PROMOTED_PAWN
+        ].includes(piece.type);
+
+        this.ctx.fillStyle = isPromoted ? '#ff0000' : '#000000'; // 成り駒は赤、それ以外は黒
+        this.ctx.font = `bold ${this.cellSize * 0.45}px sans-serif`; // フォントサイズと種類を変更
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        
-        // 文字の位置を調整して重ならないようにする
-        const textOffsetY = piece.player === PLAYER.GOTE ? -5 : 5;
-        
-        // 後手の駒は180度回転
+
+        // 文字の位置を微調整
+        const textOffsetY = piece.player === PLAYER.GOTE ? -this.cellSize * 0.05 : this.cellSize * 0.05;
+
+        // 後手の駒は文字を180度回転
         if (piece.player === PLAYER.GOTE) {
             this.ctx.save();
             this.ctx.translate(x, y + textOffsetY);
