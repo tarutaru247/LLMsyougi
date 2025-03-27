@@ -5,22 +5,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // スタイルの追加
     addSettingsModalStyles();
     
+    // スタイルの追加
+    addSettingsModalStyles();
+
+    // 設定の初期化 (Gameより先に作成)
+    const settings = new Settings();
+    // グローバルに公開
+    window.settings = settings;
+
     // 将棋盤の初期化
     const board = new Board('shogiBoard');
     
-    // ゲームの初期化
-    const game = new Game(board);
+    // ゲームの初期化 (Settingsインスタンスを渡す)
+    const game = new Game(board, settings);
     
     // UIの初期化
     const ui = new UI(game);
     
-    // BOTの初期化
+    // BOTの初期化 (Gameインスタンス経由でSettingsにアクセス可能)
     const bot = new Bot(game);
-    
-    // 設定の初期化
-    const settings = new Settings();
-    // グローバルに公開
-    window.settings = settings;
     
     // LLMモデル選択UIの作成
     const gameControls = document.querySelector('.game-controls');

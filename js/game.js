@@ -5,9 +5,11 @@ class Game {
     /**
      * ゲームのインスタンスを作成
      * @param {Board} board - 将棋盤のインスタンス
+     * @param {Settings} settings - 設定のインスタンス
      */
-    constructor(board) {
+    constructor(board, settings) { // settings パラメータを追加
         this.board = board;
+        this.settings = settings; // settings をプロパティに保存
         this.currentPlayer = PLAYER.SENTE; // 先手から開始
         this.gameMode = 'llm'; // 初期モードは人間対LLM
         this.gameHistory = []; // 棋譜
@@ -335,9 +337,10 @@ class Game {
         // BOTのインスタンスを作成
         const bot = new Bot(this);
         
-        // 使用するモデルを選択
-        const modelKeys = Object.keys(LLM_MODELS);
-        const modelKey = modelKeys[Math.floor(Math.random() * modelKeys.length)];
+        // 使用するモデルを選択 (Settingsから取得するように修正)
+        // const modelKeys = Object.keys(LLM_MODELS);
+        // const modelKey = modelKeys[Math.floor(Math.random() * modelKeys.length)]; // ランダム選択をやめる
+        const modelKey = this.settings.getSelectedModel(); // ユーザーが選択したモデルを取得
 
         // BOTに手を選択させる
         bot.selectMoveWithLLM(this.currentPlayer, modelKey, (move, thinking, isError) => { // 引数に isError を追加

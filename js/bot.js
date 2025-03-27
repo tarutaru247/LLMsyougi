@@ -52,10 +52,11 @@ class Bot {
         // LLMに送信するプロンプトを作成
         const prompt = this.createPromptForLLM(player, boardState, capturedPieces, gameHistory, legalMoves);
         
-        // LLMのAPIキーを取得
+        // LLMのAPIキーを取得 (Settingsクラス経由で取得するように修正)
         const model = LLM_MODELS[modelKey];
-        const apiKey = localStorage.getItem(model.keyName);
-        
+        // const apiKey = localStorage.getItem(model.keyName); // 直接localStorageを参照しない
+        const apiKey = this.game.settings.getApiKey(modelKey); // Settingsインスタンスから取得
+
         if (!apiKey) {
             // APIキーが設定されていない場合はエラーとして扱う
             this.thinking = false;
