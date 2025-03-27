@@ -9,7 +9,7 @@ class Game {
     constructor(board) {
         this.board = board;
         this.currentPlayer = PLAYER.SENTE; // 先手から開始
-        this.gameMode = 'human'; // 初期モードは人間対人間
+        this.gameMode = 'llm'; // 初期モードは人間対LLM
         this.gameHistory = []; // 棋譜
         this.currentMoveIndex = -1; // 現在の手番のインデックス
         this.isPromotionDialogOpen = false; // 成り駒ダイアログの表示状態
@@ -34,7 +34,10 @@ class Game {
         
         // AIの思考更新イベント
         this.onAiThinkingUpdate = null;
-        
+
+        // AIエラーイベント
+        this.onAiError = null; // AIエラー発生時に呼び出されるコールバック
+
         // 勝敗情報
         this.gameResult = null; // null: 進行中, 'sente_win': 先手勝ち, 'gote_win': 後手勝ち
     }
@@ -63,7 +66,7 @@ class Game {
     
     /**
      * ゲームモードを設定
-     * @param {string} mode - ゲームモード ('human' または 'bot')
+     * @param {string} mode - ゲームモード ('human' または 'llm')
      */
     setGameMode(mode) {
         this.gameMode = mode;
@@ -310,9 +313,9 @@ class Game {
         // ゲーム状態を更新
         this.updateGameState();
         
-        // BOTモードで、現在の手番がGOTEの場合はBOTの手を指す
-        if (this.gameMode === 'bot' && this.currentPlayer === PLAYER.GOTE) {
-            setTimeout(() => this.makeBotMove(), 500);
+        // LLMモードで、現在の手番がGOTEの場合はLLMの手を指す
+        if (this.gameMode === 'llm' && this.currentPlayer === PLAYER.GOTE) {
+            setTimeout(() => this.makeBotMove(), 500); // makeBotMove は LLM の手を指すメソッド
         }
     }
     
@@ -335,38 +338,67 @@ class Game {
         // 使用するモデルを選択
         const modelKeys = Object.keys(LLM_MODELS);
         const modelKey = modelKeys[Math.floor(Math.random() * modelKeys.length)];
-        
+
         // BOTに手を選択させる
-        bot.selectMoveWithLLM(this.currentPlayer, modelKey, (move, thinking) => {
-            // AIの思考を表示
+        bot.selectMoveWithLLM(this.currentPlayer, modelKey, (move, thinking, isError) => { // 引数に isError を追加
+            // AIの思考を表示 (エラーメッセージもここに表示される)
             if (this.onAiThinkingUpdate) {
                 this.onAiThinkingUpdate(thinking);
             }
-            
-            // 手が選択された場合
-            if (move) {
-                if (move.type === 'move') {
-                    // 駒の移動
-                    this.movePiece(move.from, move.to, move.promote);
-                } else if (move.type === 'drop') {
-                    // 持ち駒を打つ
-                    const capturedPieces = this.board.capturedPieces[this.currentPlayer];
-                    const pieceIndex = capturedPieces.findIndex(p => p.type === move.pieceType);
-                    
-                    if (pieceIndex !== -1) {
-                        this.selectedCapturedPiece = {
-                            player: this.currentPlayer,
-                            index: pieceIndex
-                        };
-                        
-                        this.dropCapturedPiece(move.to, true);
+
+            // AIの思考状態を更新
+            this.aiThinking = false; // エラーでも成功でも思考は終了
+
+            if (isError) {
+                // エラー処理
+                console.error("AI Error:", thinking); // コンソールにエラー出力
+                // UIにエラー表示と「やり直す」ボタン表示を依頼
+                if (this.onAiError) {
+                    this.onAiError(thinking); // エラーメッセージをUIに渡す
+                }
+                // 手番は変更しない
+                this.updateGameState(); // aiThinking を false にしたことを反映
+            } else {
+                // 成功時の処理
+                if (move) {
+                    if (move.type === 'move') {
+                        // 駒の移動
+                        this.movePiece(move.from, move.to, move.promote);
+                    } else if (move.type === 'drop') {
+                        // 持ち駒を打つ
+                        const capturedPieces = this.board.capturedPieces[this.currentPlayer];
+                        const pieceIndex = capturedPieces.findIndex(p => p.type === move.pieceType);
+
+                        if (pieceIndex !== -1) {
+                            this.selectedCapturedPiece = {
+                                player: this.currentPlayer,
+                                index: pieceIndex,
+                                piece: capturedPieces[pieceIndex] // piece プロパティを追加
+                            };
+
+                            this.dropCapturedPiece(move.to, true); // force=true で打つ
+                            this.selectedCapturedPiece = null; // 打った後はリセット
+                        } else {
+                            console.error("打つべき持ち駒が見つかりません:", move);
+                            // エラー処理 (持ち駒がないのに打とうとした場合)
+                            if (this.onAiError) {
+                                this.onAiError("内部エラー: 打つべき持ち駒が見つかりませんでした。");
+                            }
+                            this.updateGameState();
+                            return; // 手番を進めない
+                        }
                     }
+                    // 成功した場合のみ手番を進める
+                    this.nextTurn();
+                } else {
+                    // move が null だが isError が false の場合 (bot.jsの修正により、このケースは発生しないはず)
+                    console.error("AI returned null move without error flag.");
+                    if (this.onAiError) {
+                        this.onAiError("内部エラー: AIが手を返しませんでした。");
+                    }
+                    this.updateGameState();
                 }
             }
-            
-            // AIの思考状態を更新
-            this.aiThinking = false;
-            this.updateGameState();
         });
     }
     

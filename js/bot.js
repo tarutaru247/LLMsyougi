@@ -57,10 +57,9 @@ class Bot {
         const apiKey = localStorage.getItem(model.keyName);
         
         if (!apiKey) {
-            // APIキーが設定されていない場合はランダムな手を選択
-            const randomMove = this.selectRandomMove(player);
+            // APIキーが設定されていない場合はエラーとして扱う
             this.thinking = false;
-            callback(randomMove, 'APIキーが設定されていないため、ランダムな手を選択しました。');
+            callback(null, 'APIキーが設定されていません。', true); // 第3引数にエラーフラグを追加
             return;
         }
         
@@ -73,21 +72,19 @@ class Bot {
                 // 手が抽出できた場合
                 if (move) {
                     this.thinking = false;
-                    callback(move, response);
+                    callback(move, response, false); // 成功時はエラーフラグ false
                 } else {
-                    // 手が抽出できなかった場合はランダムな手を選択
-                    const randomMove = this.selectRandomMove(player);
+                    // 手が抽出できなかった場合はエラーとして扱う
                     this.thinking = false;
-                    callback(randomMove, response + '\n\n手が抽出できなかったため、ランダムな手を選択しました。');
+                    // エラー情報をコールバックに渡す (手は null とする)
+                    callback(null, response + '\n\n手が抽出できませんでした。', true); // 第3引数にエラーフラグを追加
                 }
             })
             .catch(error => {
                 console.error('LLM API error:', error);
-                
-                // エラーが発生した場合はランダムな手を選択
-                const randomMove = this.selectRandomMove(player);
                 this.thinking = false;
-                callback(randomMove, `APIエラーが発生したため、ランダムな手を選択しました。\nエラー: ${error.message}`);
+                // エラー情報をコールバックに渡す (手は null とする)
+                callback(null, `APIエラーが発生しました。\nエラー: ${error.message}`, true); // 第3引数にエラーフラグを追加
             });
     }
     

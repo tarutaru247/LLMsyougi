@@ -31,12 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ゲームモードの拡張
     const gameModeSelect = document.getElementById('gameMode');
     
-    // LLMモードの追加
-    const llmOption = document.createElement('option');
-    llmOption.value = 'llm';
-    llmOption.textContent = '人間 vs LLM';
-    gameModeSelect.appendChild(llmOption);
-    
     // ゲームモード変更イベント
     gameModeSelect.addEventListener('change', () => {
         const mode = gameModeSelect.value;

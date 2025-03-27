@@ -22,7 +22,8 @@ class UI {
         this.closeModalButton = document.querySelector('.close');
         this.saveApiSettingsButton = document.getElementById('saveApiSettings');
         this.aiThinkingElement = document.getElementById('aiThinking');
-        
+        this.aiErrorRetryButton = null; // やり直しボタンの参照
+
         // 成り駒ダイアログ
         this.promotionDialog = null;
         
@@ -105,6 +106,11 @@ class UI {
         // AIの思考更新イベント
         this.game.onAiThinkingUpdate = (content) => {
             this.updateAiThinking(content);
+        };
+
+        // AIエラーイベントハンドラを追加
+        this.game.onAiError = (errorMessage) => {
+            this.handleAiError(errorMessage);
         };
     }
     
@@ -394,8 +400,11 @@ class UI {
             return;
         }
 
+        // 既存のエラー表示やボタンがあれば削除
+        this.clearAiErrorDisplay();
+
         // 思考内容を表示
-        this.aiThinkingElement.innerHTML = '';
+        // this.aiThinkingElement.innerHTML = ''; // clearAiErrorDisplay でクリアされるので不要
         
         // 思考内容を整形して表示
         const formattedContent = content.replace(/\n/g, '<br>');
@@ -414,5 +423,65 @@ class UI {
         }
         
         this.aiThinkingElement.innerHTML = '';
+        this.clearAiErrorDisplay(); // エラー表示もクリア
+    }
+
+    /**
+     * AIエラー発生時の処理
+     * @param {string} errorMessage - エラーメッセージ
+     */
+    handleAiError(errorMessage) {
+        if (!this.aiThinkingElement) {
+            return;
+        }
+
+        // 既存のエラー表示やボタンがあれば削除
+        this.clearAiErrorDisplay();
+
+        // エラーメッセージを表示
+        const errorElement = document.createElement('div');
+        errorElement.className = 'ai-error-message';
+        errorElement.textContent = `エラーが発生しました: ${errorMessage}`;
+        this.aiThinkingElement.appendChild(errorElement);
+
+        // 「やり直す」ボタンを作成
+        this.aiErrorRetryButton = document.createElement('button');
+        this.aiErrorRetryButton.id = 'retryAiMoveBtn';
+        this.aiErrorRetryButton.textContent = 'AIの手番をやり直す';
+        this.aiErrorRetryButton.addEventListener('click', () => {
+            this.retryAiMove();
+        });
+        this.aiThinkingElement.appendChild(this.aiErrorRetryButton);
+
+        // スクロールを一番下に
+        this.aiThinkingElement.scrollTop = this.aiThinkingElement.scrollHeight;
+    }
+
+    /**
+     * AIの手番をやり直す
+     */
+    retryAiMove() {
+        // エラー表示とボタンをクリア
+        this.clearAiErrorDisplay();
+        // 再度AIの手番を実行
+        this.game.makeBotMove();
+    }
+
+    /**
+     * AIエラー表示とボタンをクリア
+     */
+    clearAiErrorDisplay() {
+        if (!this.aiThinkingElement) {
+            return;
+        }
+        // エラーメッセージ要素を削除
+        const errorMessages = this.aiThinkingElement.querySelectorAll('.ai-error-message');
+        errorMessages.forEach(el => el.remove());
+
+        // やり直しボタンを削除
+        if (this.aiErrorRetryButton && this.aiErrorRetryButton.parentNode === this.aiThinkingElement) {
+            this.aiThinkingElement.removeChild(this.aiErrorRetryButton);
+        }
+        this.aiErrorRetryButton = null; // 参照もクリア
     }
 }
