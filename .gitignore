@@ -1,0 +1,5 @@
+node_modules
+
+#以下二つのコメントアウトは消去してください。.env.exampleは消さなくて良いです。
+#.env.local
+#.env
