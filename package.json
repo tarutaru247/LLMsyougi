@@ -1,0 +1,19 @@
+{
+  "name": "llmsyougi",
+  "version": "1.0.0",
+  "description": "LLMと将棋をしようっていう試み \u0000 \u0000",
+  "main": "index.html",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "http-server -p 8080"
+  },
+  "keywords": [
+    "llm",
+    "syougi"
+  ],
+  "author": "tarutaru247",
+  "license": "ISC"
+}

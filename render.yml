@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sports-event-web-manager
+    env: static
+    buildCommand: npm install
+    startCommand: npm start
+    staticPublishPath: ./build
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
