@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatGPT将棋</title>
+    <title>生成AI将棋</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>ChatGPT将棋</h1>
+            <h1>生成AI将棋</h1>
             <div class="game-controls">
                 <button id="newGameBtn">新規対局</button>
                 <button id="undoBtn">待った</button>
@@ -17,7 +17,6 @@
                     <option value="human">人間 vs 人間</option>
                     <option value="llm" selected>人間 vs 生成AI</option>
                 </select>
-                <!--<button id="settingsBtn">設定</button>jsで生成されるようなので削除-->
             </div>
         </header>
         
@@ -66,8 +65,12 @@
                     <input type="password" id="gpt4oKey" placeholder="APIキーを入力">
                 </div>
                 <div class="api-setting">
-                    <label for="o3miniKey">o3-mini API Key:</label>
-                    <input type="password" id="o3miniKey" placeholder="APIキーを入力">
+                    <label for="o3Key">o3 API Key:</label>
+                    <input type="password" id="o3Key" placeholder="APIキーを入力">
+                </div>
+                <div class="api-setting">
+                    <label for="o4miniKey">o4-mini API Key:</label>
+                    <input type="password" id="o4miniKey" placeholder="APIキーを入力">
                 </div>
                 <div class="api-setting">
                     <label for="claudeKey">Claude 3.7 Sonnet API Key:</label>

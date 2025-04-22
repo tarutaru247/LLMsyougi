@@ -9,7 +9,8 @@ class Settings {
         // APIキーの設定
         this.apiKeys = {
             gpt4oKey: null,
-            o3miniKey: null,
+            o3Key: null,
+            o4miniKey: null,
             claudeKey: null,
             geminiFlashKey: null,
             geminiProKey: null

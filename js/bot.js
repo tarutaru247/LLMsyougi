@@ -314,7 +314,8 @@ class Bot {
         
         switch (model.name) {
             case 'GPT-4o':
-            case 'o3-mini':
+            case 'o3':
+            case 'o4-mini':
                 response = await this.sendRequestToOpenAI(model, apiKey, prompt, legalMoves);
                 break;
             case 'Claude 3.7 Sonnet':
@@ -355,7 +356,7 @@ class Bot {
         
         // o3-miniモデル以外の場合はtemperatureパラメータを追加
         if (model.model !== 'o3-mini') {
-            requestBody.temperature = 0.7;
+            requestBody.temperature = 1;
         }
         
         const response = await fetch(model.apiEndpoint, {
@@ -454,7 +455,7 @@ class Bot {
                     },
                     { role: 'user', content: prompt }
                 ],
-                temperature: 0.7,
+                temperature: 1,
                 max_tokens: 1000,
                 stream: true // ストリーミングを有効化
             })
