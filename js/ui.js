@@ -57,21 +57,27 @@ class UI {
         });
         
         // 設定ボタン
-        this.settingsButton.addEventListener('click', () => {
-            this.openSettingsModal();
-        });
+        // if (this.settingsButton) {
+        //     this.settingsButton.addEventListener('click', () => {
+        //         this.openSettingsModal();
+        //     });
+        // }
         
         // モーダルを閉じるボタン
-        this.closeModalButton.addEventListener('click', () => {
-            this.closeSettingsModal();
-        });
+        if (this.closeModalButton) {
+            this.closeModalButton.addEventListener('click', () => {
+                this.closeSettingsModal();
+            });
+        }
         
         // モーダル外クリックで閉じる
-        window.addEventListener('click', (event) => {
-            if (event.target === this.settingsModal) {
-                this.closeSettingsModal();
-            }
-        });
+        // if (this.settingsModal) {
+        //     window.addEventListener('click', (event) => {
+        //         if (event.target === this.settingsModal) {
+        //             this.closeSettingsModal();
+        //         }
+        //     });
+        // }
         
         // API設定保存ボタン
         this.saveApiSettingsButton.addEventListener('click', () => {

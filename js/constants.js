@@ -300,11 +300,17 @@ const LLM_MODELS = {
         model: 'gpt-4o',
         keyName: 'gpt4oKey'
     },
-    O3MINI: {
-        name: 'o3-mini',
+    O3: {
+        name: 'o3',
         apiEndpoint: 'https://api.openai.com/v1/chat/completions',
-        model: 'o3-mini',
-        keyName: 'o3miniKey'
+        model: 'o3',
+        keyName: 'o3Key'
+    },
+    O4MINI: {
+        name: 'o4-mini',
+        apiEndpoint: 'https://api.openai.com/v1/chat/completions',
+        model: 'o4-mini',
+        keyName: 'o4miniKey'
     },
     CLAUDE: {
         name: 'Claude 3.7 Sonnet',
