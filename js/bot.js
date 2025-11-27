@@ -60,6 +60,9 @@ class Bot {
             modelKey
         );
 
+        // 盤面＋持ち駒を画像化（必要なら後手視点で反転）
+        const imageBase64 = this.captureBoardSnapshot(player === PLAYER.GOTE);
+
         const apiKey = model.name === 'Debug Dummy' ? 'DUMMY' : this.game.settings.getApiKey(modelKey);
         if (!apiKey) {
             this.thinking = false;
@@ -68,7 +71,7 @@ class Bot {
         }
 
         try {
-            const responseText = await this.sendRequestToLLM(model, apiKey, prompt);
+            const responseText = await this.sendRequestToLLM(model, apiKey, prompt, imageBase64);
             let move = this.extractMoveFromResponse(responseText, player, legalMoves);
             // デバッグダミーは指さない
             if (model.name === 'Debug Dummy') {
@@ -108,7 +111,7 @@ class Bot {
         const thinkingDirective = this.getThinkingDirective(modelKey);
 
         const instruction = [
-            'あなたは将棋の指し手選択エージェントです。以下の合法手リストから最善の1手だけを選び、必ず1行JSONで返してください。',
+            'あなたははプロの棋士として将棋を指します。以下の合法手リストから最善の1手だけを選び、必ず1行JSONで返してください。',
             roleText,
             lastMoveText,
             `現在の手番: ${turnText}。現在王手: ${inCheck ? 'はい' : 'いいえ'}。王手を受けている場合は回避を最優先。`,
@@ -124,10 +127,59 @@ class Bot {
             historyText,
             '【合法手リスト】',
             JSON.stringify(legalMovesPayload, null, 2),
-            'ルール: move_idは上記リストのidのみ。出力は1行JSON。'
+            'ルール: move_idは上記リストのidのみ。出力は1行JSON。',
+            '画像: 盤面と持ち駒の最新スクリーンショットを添付しています。必要なら併用して最善手を選んでください。'
         ];
 
         return instruction.join('\n');
+    }
+
+    /**
+     * 盤面＋持ち駒を画像化し、Base64 dataURL を返す
+     * flipForGote: 後手の場合は180度回転した画像を渡す
+     */
+    captureBoardSnapshot(flipForGote = false) {
+        const boardCanvas = this.game.board.canvas;
+        const capSente = this.game.board.capturedPieces[PLAYER.SENTE] || [];
+        const capGote = this.game.board.capturedPieces[PLAYER.GOTE] || [];
+
+        const w = boardCanvas.width;
+        const boardH = boardCanvas.height;
+        const capH = 40;
+        const pad = 16;
+        const h = capH * 2 + boardH + pad * 2;
+
+        const off = document.createElement('canvas');
+        off.width = w;
+        off.height = h;
+        const ctx = off.getContext('2d');
+
+        // 背景
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#333';
+        ctx.font = '16px sans-serif';
+
+        // 持ち駒（後手）
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`後手の持ち駒: ${this.formatCapturedPiecesForPrompt(capGote)}`, 8, capH / 2);
+
+        // 盤面
+        const boardY = capH + pad;
+        if (flipForGote) {
+            ctx.save();
+            ctx.translate(w, boardY + boardH);
+            ctx.rotate(Math.PI);
+            ctx.drawImage(boardCanvas, 0, 0, w, boardH);
+            ctx.restore();
+        } else {
+            ctx.drawImage(boardCanvas, 0, boardY);
+        }
+
+        // 持ち駒（先手）
+        ctx.fillText(`先手の持ち駒: ${this.formatCapturedPiecesForPrompt(capSente)}`, 8, boardY + boardH + capH / 2 + pad);
+
+        return off.toDataURL('image/png');
     }
 
     buildBoardStateJson(boardState) {
@@ -200,30 +252,36 @@ class Bot {
     /**
      * LLM API送信
      */
-    async sendRequestToLLM(model, apiKey, prompt) {
+    async sendRequestToLLM(model, apiKey, prompt, imageBase64) {
         switch (model.name) {
             case 'GPT-5.1 Low':
             case 'GPT-5.1 Medium':
             case 'GPT-5.1 High':
-                return this.sendRequestToOpenAI(model, apiKey, prompt);
+                return this.sendRequestToOpenAI(model, apiKey, prompt, imageBase64);
             case 'Debug Dummy':
                 return this.sendRequestToDummy(prompt);
             case 'Gemini Flash':
             case 'Gemini Flash Thinking':
             case 'Gemini 3 Pro high':
             case 'Gemini 3 Pro low':
-                return this.sendRequestToGemini(model, apiKey, prompt);
+                return this.sendRequestToGemini(model, apiKey, prompt, imageBase64);
             default:
                 throw new Error(`未対応のモデル: ${model.name}`);
         }
     }
 
-    async sendRequestToOpenAI(model, apiKey, prompt) {
+    async sendRequestToOpenAI(model, apiKey, prompt, imageBase64) {
         const body = {
             model: model.model,
             messages: [
                 { role: 'system', content: 'あなたは将棋の指し手を返すAIです。合法手リストに従い、JSON1行のみで回答してください。' },
-                { role: 'user', content: prompt }
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: prompt },
+                        imageBase64 ? { type: 'image_url', image_url: { url: imageBase64 } } : null
+                    ].filter(Boolean)
+                }
             ],
             stream: true
         };
@@ -285,7 +343,7 @@ class Bot {
         return fullContent;
     }
 
-    async sendRequestToGemini(model, apiKey, prompt) {
+    async sendRequestToGemini(model, apiKey, prompt, imageBase64) {
         const generationConfig = {};
         if (model.thinkingMode) {
             generationConfig.thinkingConfig = {
@@ -298,6 +356,13 @@ class Bot {
             };
         }
 
+        // Gemini 画像部品用に Base64 部分だけ抽出
+        let inlineImage = null;
+        if (imageBase64) {
+            const base64 = imageBase64.replace(/^data:image\/png;base64,/, '');
+            inlineImage = { inline_data: { mime_type: 'image/png', data: base64 } };
+        }
+
         const res = await fetch(model.apiEndpoint, {
             method: 'POST',
             headers: {
@@ -306,7 +371,7 @@ class Bot {
             },
             body: JSON.stringify({
                 model: model.model,
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                contents: [{ role: 'user', parts: inlineImage ? [{ text: prompt }, inlineImage] : [{ text: prompt }] }],
                 generationConfig,
                 safetySettings: []
             })
