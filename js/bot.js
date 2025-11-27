@@ -107,7 +107,8 @@ class Bot {
             `現在の手番: ${turnText}。現在王手: ${inCheck ? 'はい' : 'いいえ'}。王手を受けている場合は回避を最優先。`,
             thinkingDirective,
             '出力は1行JSONのみ（コードブロック禁止）。キー: move_id, notation, reason。',
-            '例: {"move_id": 3, "notation": "７六歩", "reason": "角道を開けて主導権を取る"}',
+            'reason は2〜3文で具体的に。狙い、受けの意図、手順の短い展開例を含めること。',
+            '例: {"move_id": 3, "notation": "７六歩", "reason": "角道を開け主導権を取る。次に７五歩〜７四歩で飛車先を伸ばし、角交換の含みでプレッシャーをかける。自陣玉は６八銀〜７八金で早めに固める。"}',
             '【盤面(JSON)】',
             JSON.stringify(boardJson, null, 2),
             '【持ち駒】',
@@ -390,11 +391,11 @@ class Bot {
         if (!this.game || !this.game.settings) return '';
         if (modelKey === 'GEMINI3_PRO_HIGH' || modelKey === 'GEMINI3_PRO_LOW') {
             const level = modelKey.endsWith('HIGH') ? 'high' : 'low';
-            return `思考レベル: ${level}（${level === 'high' ? '詳細に' : '簡潔に'}理由を書く）。出力は1行JSONのみ。`;
+            return `思考レベル: ${level}。reasonは2〜3文で具体的に（狙い・受けの意図・手順の短い展開例を含める）。出力は1行JSONのみ。`;
         }
         if (modelKey === 'GEMINI_FLASH_THINK' || modelKey === 'GEMINI_FLASH') {
             const mode = modelKey === 'GEMINI_FLASH_THINK' ? 'on' : 'off';
-            return `思考モード: ${mode}。reasonは簡潔に。出力は1行JSONのみ。`;
+            return `思考モード: ${mode}。reasonは2〜3文で具体的に（狙い・受けの意図・短い展開例）。出力は1行JSONのみ。`;
         }
         return '';
     }
