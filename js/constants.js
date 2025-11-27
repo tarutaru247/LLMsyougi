@@ -267,6 +267,7 @@ const LLM_MODELS = {
         apiEndpoint: 'dummy',
         model: 'debug-dummy-random',
         keyName: 'dummyKey',
-        random: true
+        random: true,
+        isRandom: true
     }
 };

@@ -47,6 +47,16 @@ class Bot {
         );
 
         const model = LLM_MODELS[modelKey];
+
+        // ランダムダミーはAPI呼び出しを行わずランダム手＋1秒ディレイ
+        if (model && model.isRandom) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const move = this.selectRandomMove(player);
+            this.thinking = false;
+            callback(move, 'Debug Dummy Random: ランダム手を返しました', false);
+            return;
+        }
+
         const apiKey = model.name === 'Debug Dummy' ? 'DUMMY' : this.game.settings.getApiKey(modelKey);
         if (!apiKey) {
             this.thinking = false;

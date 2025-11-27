@@ -18,6 +18,7 @@ class UI {
         this.newGameButton = document.getElementById('newGameBtn');
         this.undoButton = document.getElementById('undoBtn');
         this.startAiMatchButton = document.getElementById('startAiMatchBtn');
+        this.stopAiMatchButton = document.getElementById('stopAiMatchBtn');
         this.gameModeSelect = document.getElementById('gameMode');
         this.settingsButton = document.getElementById('openApiSettingsBtn');
         this.settingsModal = document.getElementById('settingsModal');
@@ -48,6 +49,9 @@ class UI {
         this.undoButton.addEventListener('click', () => this.game.undoMove());
         if (this.startAiMatchButton) {
             this.startAiMatchButton.addEventListener('click', () => this.game.startAiMatch());
+        }
+        if (this.stopAiMatchButton) {
+            this.stopAiMatchButton.addEventListener('click', () => this.game.stopAiMatch());
         }
         this.gameModeSelect.addEventListener('change', () => {
             this.game.setGameMode(this.gameModeSelect.value);
@@ -103,7 +107,7 @@ class UI {
             const moveNumber = Math.floor(index / 2) + 1;
             const playerMark = move.player === PLAYER.SENTE ? '▲' : '△';
             let moveText = '';
-            const toRowMap = ['一','二','三','四','五','六','七','八','九'];
+            const toRowMap = ['\u4e00','\u4e8c','\u4e09','\u56db','\u4e94','\u516d','\u4e03','\u516b','\u4e5d'];
             if (move.type === 'move') {
                 const pieceName = PIECE_NAMES[move.pieceType];
                 const toCol = 9 - move.to.col;
@@ -409,5 +413,6 @@ class UI {
         this.aiThinkingIndicator = null;
     }
 }
+
 
 
