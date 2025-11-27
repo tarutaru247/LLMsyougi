@@ -8,7 +8,9 @@ class UI {
      */
     constructor(game) {
         this.game = game;
-        
+        this.aiThinkingHistory = []; // 過去の思考ログ
+        this.aiThinkingIndicator = null;
+
         // DOM要素
         this.gameStatusElement = document.getElementById('gameStatus');
         this.gameRecordElement = document.getElementById('gameRecord');
@@ -23,6 +25,7 @@ class UI {
         this.saveApiSettingsButton = document.getElementById('saveApiSettings');
         this.aiThinkingElement = document.getElementById('aiThinking');
         this.aiErrorRetryButton = null; // やり直しボタンの参照
+        this.aiTitle = document.querySelector('.ai-thinking-title');
 
         // 成り駒ダイアログ
         this.promotionDialog = null;
@@ -278,10 +281,28 @@ class UI {
 
     updateAiThinking(content) {
         if (!this.aiThinkingElement) return;
-        this.clearAiErrorDisplay();
-        const formattedContent = content.replace(/\n/g, '<br>');
-        this.aiThinkingElement.innerHTML = formattedContent;
-        this.aiThinkingElement.scrollTop = this.aiThinkingElement.scrollHeight;
+        this.clearAiErrorDisplay(false); // エラー表示だけクリア、履歴は残す
+        const parsed = this.tryParseAiJson(content);
+        if (parsed) {
+            const entry = {
+                moveId: parsed.move_id ?? null,
+                notation: parsed.notation ?? null,
+                reason: parsed.reason ?? ''
+            };
+            const last = this.aiThinkingHistory[this.aiThinkingHistory.length - 1];
+            const sameAsLast = last &&
+                last.moveId === entry.moveId &&
+                last.notation === entry.notation &&
+                last.reason === entry.reason;
+            if (!sameAsLast) {
+                this.aiThinkingHistory.push(entry);
+                if (this.aiThinkingHistory.length > 30) this.aiThinkingHistory.shift(); // 古いものから削除
+            }
+            this.renderThinkingHistory();
+        } else {
+            // 非JSONはタイトル横のインジケータに表示し、履歴は消さない
+            this.showThinkingIndicator(content);
+        }
     }
 
     hideAiThinking() {
@@ -312,12 +333,81 @@ class UI {
         this.game.makeBotMove();
     }
 
-    clearAiErrorDisplay() {
+    clearAiErrorDisplay(removeHistory = true) {
         if (!this.aiThinkingElement) return;
         this.aiThinkingElement.querySelectorAll('.ai-error-message').forEach(el => el.remove());
         if (this.aiErrorRetryButton && this.aiErrorRetryButton.parentNode === this.aiThinkingElement) {
             this.aiThinkingElement.removeChild(this.aiErrorRetryButton);
         }
         this.aiErrorRetryButton = null;
+        if (removeHistory) {
+            this.aiThinkingHistory = [];
+        }
+        this.hideThinkingIndicator();
+    }
+
+    /**
+     * AI応答からJSONを抽出してパース
+     */
+    tryParseAiJson(text) {
+        if (!text) return null;
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) return null;
+        try {
+            return JSON.parse(match[0]);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * HTMLエスケープ
+     */
+    escapeHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    /**
+     * 思考履歴を描画
+     */
+    renderThinkingHistory() {
+        if (!this.aiThinkingElement) return;
+        const blocks = this.aiThinkingHistory.map((entry, idx, arr) => {
+            const isLatest = idx === arr.length - 1;
+            return `
+                <div class="ai-move-block${isLatest ? ' latest' : ''}">
+                    <div class="ai-move-meta"><span class="ai-label">move_id</span> ${entry.moveId ?? '―'}</div>
+                    <div class="ai-move-meta"><span class="ai-label">notation</span> ${entry.notation ?? '―'}</div>
+                    <div class="ai-move-reason">${entry.reason ? this.escapeHtml(entry.reason) : '理由なし'}</div>
+                </div>
+            `;
+        }).join('');
+        this.aiThinkingElement.innerHTML = blocks || '思考履歴はありません';
+        this.aiThinkingElement.scrollTop = this.aiThinkingElement.scrollHeight;
+    }
+
+    /**
+     * 思考中インジケータ（タイトル横）表示
+     */
+    showThinkingIndicator(text = '思考中...') {
+        if (!this.aiTitle) return;
+        if (!this.aiThinkingIndicator) {
+            this.aiThinkingIndicator = document.createElement('span');
+            this.aiThinkingIndicator.className = 'ai-thinking-indicator';
+            this.aiTitle.appendChild(this.aiThinkingIndicator);
+        }
+        this.aiThinkingIndicator.textContent = ` (${text})`;
+    }
+
+    hideThinkingIndicator() {
+        if (this.aiThinkingIndicator && this.aiThinkingIndicator.parentNode) {
+            this.aiThinkingIndicator.parentNode.removeChild(this.aiThinkingIndicator);
+        }
+        this.aiThinkingIndicator = null;
     }
 }

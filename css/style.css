@@ -192,9 +192,42 @@ select {
     padding: 10px;
     border: 1px solid #eee;
     border-radius: 4px;
-    font-family: monospace;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    white-space: normal;
+    margin-top: 6px;
+}
+
+.ai-move-block {
+    background: #fafafa;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 6px 8px 6px;
+    line-height: 1.4;
+    white-space: normal; /* 親の pre-wrap を打ち消す */
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+.ai-move-block.latest {
+    border-color: #4a6da7;
+    box-shadow: 0 0 0 2px rgba(74,109,167,0.12);
+}
+.ai-move-meta {
+    color: #666;
+    font-size: 13px;
+    margin: 0;
+}
+.ai-move-meta + .ai-move-meta { margin-top: 2px; }
+.ai-move-meta .ai-label {
+    color: #999;
+    margin-right: 6px;
+}
+.ai-move-reason {
+    margin-top: 1px;
+    font-size: 14px;
+    color: #222;
     white-space: pre-wrap;
-    margin-top: 10px;
+}
+.ai-move-block + .ai-move-block {
+    margin-top: 4px; /* 履歴間の余白をさらに詰める */
 }
 
 /* Responsive Design */

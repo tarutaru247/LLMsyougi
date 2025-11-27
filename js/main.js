@@ -24,11 +24,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // BOTの初期化 (Gameインスタンス経由でSettingsにアクセス可能)
     const bot = new Bot(game);
-    
+
     // LLMモデル選択UIの作成
     const gameControls = document.querySelector('.game-controls');
     createModelSelector(gameControls, settings, (modelKey) => {
         console.log(`モデルを変更: ${LLM_MODELS[modelKey].name}`);
+        // モデル変更時にAI思考履歴クリア
+        if (game.ui && game.ui.aiThinkingHistory) {
+            game.ui.aiThinkingHistory = [];
+            if (game.ui.renderThinkingHistory) {
+                game.ui.renderThinkingHistory();
+            }
+        }
     });
     
     // API設定ボタンのイベント
