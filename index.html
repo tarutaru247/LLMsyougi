@@ -1,53 +1,54 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>逕滓・AI蟆・｣・/title>
+    <title>生成AI将棋</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>逕滓・AI蟆・｣・/h1>
+            <h1>生成AI将棋</h1>
             <div class="game-controls">
-                <button id="newGameBtn">譁ｰ隕丞ｯｾ螻</button>
-                <button id="undoBtn">荳謇区綾縺・/button>
+                <button id="newGameBtn">新規対局</button>
+                <button id="undoBtn">一手戻す</button>
                 <select id="gameMode">
-                    <option value="human">莠ｺ髢・vs 莠ｺ髢・/option>
-                    <option value="llm" selected>莠ｺ髢・vs 逕蘗I</option>
+                    <option value="human">人間 vs 人間</option>
+                    <option value="llm" selected>人間 vs 生成AI</option>
                 </select>
+                <button id="openApiSettingsBtn">API設定</button>
             </div>
         </header>
 
         <div class="game-container">
             <div class="board-container">
                 <div class="captured-pieces top">
-                    <h3>蠕梧焔縺ｮ謖√■鬧・/h3>
+                    <h3>後手の持ち駒</h3>
                     <div id="capturedPiecesGote" class="pieces-container"></div>
                 </div>
 
                 <canvas id="shogiBoard" width="450" height="500"></canvas>
 
                 <div class="captured-pieces bottom">
-                    <h3>蜈域焔縺ｮ謖√■鬧・/h3>
+                    <h3>先手の持ち駒</h3>
                     <div id="capturedPiecesSente" class="pieces-container"></div>
                 </div>
             </div>
 
             <div class="game-info">
                 <div class="game-status">
-                    <h3>繧ｲ繝ｼ繝迥ｶ諷・/h3>
-                    <p id="gameStatus">蜈域焔縺ｮ謇狗分縺ｧ縺・/p>
+                    <h3>ゲーム状態</h3>
+                    <p id="gameStatus">先手の手番です</p>
                 </div>
 
                 <div class="ai-thinking">
-                    <h3>AI縺ｮ諤晁・/h3>
+                    <h3>AIの思考</h3>
                     <div id="aiThinking" class="thinking-container"></div>
                 </div>
 
                 <div class="game-record">
-                    <h3>譽玖ｭ・/h3>
+                    <h3>棋譜</h3>
                     <div id="gameRecord" class="record-container"></div>
                 </div>
             </div>
@@ -58,17 +59,17 @@
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>API險ｭ螳・/h2>
+            <h2>API設定</h2>
             <div class="api-settings">
                 <div class="api-setting">
                     <label for="gpt51Key">GPT-5.1 API Key:</label>
-                    <input type="password" id="gpt51Key" placeholder="API繧ｭ繝ｼ繧貞・蜉・>
+                    <input type="password" id="gpt51Key" placeholder="APIキーを入力">
                 </div>
                 <div class="api-setting">
                     <label for="geminiKey">Gemini API Key:</label>
-                    <input type="password" id="geminiKey" placeholder="API繧ｭ繝ｼ繧貞・蜉・>
+                    <input type="password" id="geminiKey" placeholder="APIキーを入力">
                 </div>
-                <button id="saveApiSettings">菫晏ｭ・/button>
+                <button id="saveApiSettings">保存</button>
             </div>
         </div>
     </div>

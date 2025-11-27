@@ -247,9 +247,12 @@ class Board {
         // 駒の文字
         // 成り駒かどうかを判定
         const isPromoted = [
-            PIECE_TYPES.PROMOTED_ROOK, PIECE_TYPES.PROMOTED_BISHOP,
-            PIECE_TYPES.PROMOTED_LANCE, PIECE_TYPES.PROMOTED_KNIGHT,
-            PIECE_TYPES.PROMOTED_SILVER, PIECE_TYPES.PROMOTED_PAWN
+            PIECE_TYPES.TO,
+            PIECE_TYPES.NKYO,
+            PIECE_TYPES.NKEI,
+            PIECE_TYPES.NGIN,
+            PIECE_TYPES.UMA,
+            PIECE_TYPES.RYU
         ].includes(piece.type);
 
         this.ctx.fillStyle = isPromoted ? '#ff0000' : '#000000'; // 成り駒は赤、それ以外は黒

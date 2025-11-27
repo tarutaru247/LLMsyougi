@@ -1,5 +1,5 @@
-/**
- * 将棋ゲームの定数を定義するファイル
+﻿/**
+ * 将棋ゲームの定数定義
  */
 
 // 駒の種類
@@ -12,9 +12,7 @@ const PIECE_TYPES = {
     KIN: 5,     // 金将
     KAKU: 6,    // 角行
     HISHA: 7,   // 飛車
-    GYOKU: 8,   // 玉将/王将
-    
-    // 成り駒
+    GYOKU: 8,   // 玉将
     TO: 11,     // と金
     NKYO: 12,   // 成香
     NKEI: 13,   // 成桂
@@ -25,17 +23,14 @@ const PIECE_TYPES = {
 
 // プレイヤー
 const PLAYER = {
-    SENTE: 0,   // 先手（下手）
-    GOTE: 1     // 後手（上手）
+    SENTE: 0,
+    GOTE: 1
 };
 
-// 盤面のサイズ
-const BOARD_SIZE = {
-    ROWS: 9,
-    COLS: 9
-};
+// 盤面サイズ
+const BOARD_SIZE = { ROWS: 9, COLS: 9 };
 
-// 駒の表示名（日本語）
+// 駒の表示名
 const PIECE_NAMES = {
     [PIECE_TYPES.FU]: '歩',
     [PIECE_TYPES.KYO]: '香',
@@ -53,9 +48,8 @@ const PIECE_NAMES = {
     [PIECE_TYPES.RYU]: '龍'
 };
 
-// 駒の初期配置
+// 初期配置
 const INITIAL_BOARD = [
-    // 後手（上手）の駒
     [
         { type: PIECE_TYPES.KYO, player: PLAYER.GOTE },
         { type: PIECE_TYPES.KEI, player: PLAYER.GOTE },
@@ -89,11 +83,9 @@ const INITIAL_BOARD = [
         { type: PIECE_TYPES.FU, player: PLAYER.GOTE },
         { type: PIECE_TYPES.FU, player: PLAYER.GOTE }
     ],
-    // 空の行
     Array(BOARD_SIZE.COLS).fill().map(() => ({ type: PIECE_TYPES.EMPTY, player: null })),
     Array(BOARD_SIZE.COLS).fill().map(() => ({ type: PIECE_TYPES.EMPTY, player: null })),
     Array(BOARD_SIZE.COLS).fill().map(() => ({ type: PIECE_TYPES.EMPTY, player: null })),
-    // 先手（下手）の駒
     [
         { type: PIECE_TYPES.FU, player: PLAYER.SENTE },
         { type: PIECE_TYPES.FU, player: PLAYER.SENTE },
@@ -129,7 +121,7 @@ const INITIAL_BOARD = [
     ]
 ];
 
-// 駒の成りの対応表
+// 成り対応
 const PROMOTION_MAP = {
     [PIECE_TYPES.FU]: PIECE_TYPES.TO,
     [PIECE_TYPES.KYO]: PIECE_TYPES.NKYO,
@@ -139,7 +131,6 @@ const PROMOTION_MAP = {
     [PIECE_TYPES.HISHA]: PIECE_TYPES.RYU
 };
 
-// 成れない駒のリスト
 const CANNOT_PROMOTE = [
     PIECE_TYPES.KIN,
     PIECE_TYPES.GYOKU,
@@ -151,7 +142,6 @@ const CANNOT_PROMOTE = [
     PIECE_TYPES.RYU
 ];
 
-// 成り駒の元の駒
 const UNPROMOTED_PIECE = {
     [PIECE_TYPES.TO]: PIECE_TYPES.FU,
     [PIECE_TYPES.NKYO]: PIECE_TYPES.KYO,
@@ -161,173 +151,109 @@ const UNPROMOTED_PIECE = {
     [PIECE_TYPES.RYU]: PIECE_TYPES.HISHA
 };
 
-// 駒の移動方向（相対座標）
-// 先手（下手）の視点から見た方向
+// 移動方向（先手視点）
 const MOVE_DIRECTIONS = {
-    // 歩兵の動き
-    [PIECE_TYPES.FU]: [
-        { row: -1, col: 0 }  // 前
-    ],
-    
-    // 香車の動き
-    [PIECE_TYPES.KYO]: [
-        { row: -1, col: 0, sliding: true }  // 前（無限）
-    ],
-    
-    // 桂馬の動き
-    [PIECE_TYPES.KEI]: [
-        { row: -2, col: -1 },  // 左前桂馬跳び
-        { row: -2, col: 1 }    // 右前桂馬跳び
-    ],
-    
-    // 銀将の動き
+    [PIECE_TYPES.FU]: [ { row: -1, col: 0 } ],
+    [PIECE_TYPES.KYO]: [ { row: -1, col: 0, sliding: true } ],
+    [PIECE_TYPES.KEI]: [ { row: -2, col: -1 }, { row: -2, col: 1 } ],
     [PIECE_TYPES.GIN]: [
-        { row: -1, col: -1 },  // 左前
-        { row: -1, col: 0 },   // 前
-        { row: -1, col: 1 },   // 右前
-        { row: 1, col: -1 },   // 左後ろ
-        { row: 1, col: 1 }     // 右後ろ
+        { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+        { row: 1, col: -1 }, { row: 1, col: 1 }
     ],
-    
-    // 金将の動き
     [PIECE_TYPES.KIN]: [
-        { row: -1, col: -1 },  // 左前
-        { row: -1, col: 0 },   // 前
-        { row: -1, col: 1 },   // 右前
-        { row: 0, col: -1 },   // 左
-        { row: 0, col: 1 },    // 右
-        { row: 1, col: 0 }     // 後ろ
+        { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+        { row: 0, col: -1 }, { row: 0, col: 1 }, { row: 1, col: 0 }
     ],
-    
-    // 角行の動き
     [PIECE_TYPES.KAKU]: [
-        { row: -1, col: -1, sliding: true },  // 左前（無限）
-        { row: -1, col: 1, sliding: true },   // 右前（無限）
-        { row: 1, col: -1, sliding: true },   // 左後ろ（無限）
-        { row: 1, col: 1, sliding: true }     // 右後ろ（無限）
+        { row: -1, col: -1, sliding: true }, { row: -1, col: 1, sliding: true },
+        { row: 1, col: -1, sliding: true }, { row: 1, col: 1, sliding: true }
     ],
-    
-    // 飛車の動き
     [PIECE_TYPES.HISHA]: [
-        { row: -1, col: 0, sliding: true },  // 前（無限）
-        { row: 0, col: -1, sliding: true },  // 左（無限）
-        { row: 0, col: 1, sliding: true },   // 右（無限）
-        { row: 1, col: 0, sliding: true }    // 後ろ（無限）
+        { row: -1, col: 0, sliding: true }, { row: 0, col: -1, sliding: true },
+        { row: 0, col: 1, sliding: true }, { row: 1, col: 0, sliding: true }
     ],
-    
-    // 王将・玉将の動き
     [PIECE_TYPES.GYOKU]: [
-        { row: -1, col: -1 },  // 左前
-        { row: -1, col: 0 },   // 前
-        { row: -1, col: 1 },   // 右前
-        { row: 0, col: -1 },   // 左
-        { row: 0, col: 1 },    // 右
-        { row: 1, col: -1 },   // 左後ろ
-        { row: 1, col: 0 },    // 後ろ
-        { row: 1, col: 1 }     // 右後ろ
+        { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+        { row: 0, col: -1 }, { row: 0, col: 1 },
+        { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 }
     ],
-    
-    // と金の動き（金と同じ）
     [PIECE_TYPES.TO]: [
-        { row: -1, col: -1 },  // 左前
-        { row: -1, col: 0 },   // 前
-        { row: -1, col: 1 },   // 右前
-        { row: 0, col: -1 },   // 左
-        { row: 0, col: 1 },    // 右
-        { row: 1, col: 0 }     // 後ろ
+        { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+        { row: 0, col: -1 }, { row: 0, col: 1 }, { row: 1, col: 0 }
     ],
-    
-    // 成香の動き（金と同じ）
     [PIECE_TYPES.NKYO]: [
-        { row: -1, col: -1 },  // 左前
-        { row: -1, col: 0 },   // 前
-        { row: -1, col: 1 },   // 右前
-        { row: 0, col: -1 },   // 左
-        { row: 0, col: 1 },    // 右
-        { row: 1, col: 0 }     // 後ろ
+        { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+        { row: 0, col: -1 }, { row: 0, col: 1 }, { row: 1, col: 0 }
     ],
-    
-    // 成桂の動き（金と同じ）
     [PIECE_TYPES.NKEI]: [
-        { row: -1, col: -1 },  // 左前
-        { row: -1, col: 0 },   // 前
-        { row: -1, col: 1 },   // 右前
-        { row: 0, col: -1 },   // 左
-        { row: 0, col: 1 },    // 右
-        { row: 1, col: 0 }     // 後ろ
+        { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+        { row: 0, col: -1 }, { row: 0, col: 1 }, { row: 1, col: 0 }
     ],
-    
-    // 成銀の動き（金と同じ）
     [PIECE_TYPES.NGIN]: [
-        { row: -1, col: -1 },  // 左前
-        { row: -1, col: 0 },   // 前
-        { row: -1, col: 1 },   // 右前
-        { row: 0, col: -1 },   // 左
-        { row: 0, col: 1 },    // 右
-        { row: 1, col: 0 }     // 後ろ
+        { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+        { row: 0, col: -1 }, { row: 0, col: 1 }, { row: 1, col: 0 }
     ],
-    
-    // 馬の動き（角＋王の十字）
     [PIECE_TYPES.UMA]: [
-        { row: -1, col: -1, sliding: true },  // 左前（無限）
-        { row: -1, col: 1, sliding: true },   // 右前（無限）
-        { row: 1, col: -1, sliding: true },   // 左後ろ（無限）
-        { row: 1, col: 1, sliding: true },    // 右後ろ（無限）
-        { row: -1, col: 0 },   // 前
-        { row: 0, col: -1 },   // 左
-        { row: 0, col: 1 },    // 右
-        { row: 1, col: 0 }     // 後ろ
+        { row: -1, col: -1, sliding: true }, { row: -1, col: 1, sliding: true },
+        { row: 1, col: -1, sliding: true }, { row: 1, col: 1, sliding: true },
+        { row: -1, col: 0 }, { row: 0, col: -1 }, { row: 0, col: 1 }, { row: 1, col: 0 }
     ],
-    
-    // 龍の動き（飛車＋王の斜め）
     [PIECE_TYPES.RYU]: [
-        { row: -1, col: 0, sliding: true },  // 前（無限）
-        { row: 0, col: -1, sliding: true },  // 左（無限）
-        { row: 0, col: 1, sliding: true },   // 右（無限）
-        { row: 1, col: 0, sliding: true },   // 後ろ（無限）
-        { row: -1, col: -1 },  // 左前
-        { row: -1, col: 1 },   // 右前
-        { row: 1, col: -1 },   // 左後ろ
-        { row: 1, col: 1 }     // 右後ろ
+        { row: -1, col: 0, sliding: true }, { row: 0, col: -1, sliding: true },
+        { row: 0, col: 1, sliding: true }, { row: 1, col: 0, sliding: true },
+        { row: -1, col: -1 }, { row: -1, col: 1 }, { row: 1, col: -1 }, { row: 1, col: 1 }
     ]
 };
 
-// LLMモデルの設定
+// LLMモデル設定（思考バリエーションを含めて表示用に分割）
 const LLM_MODELS = {
-    GPT4O: {
-        name: 'GPT-4o',
+    GPT51_LOW: {
+        name: 'GPT-5.1 Low',
         apiEndpoint: 'https://api.openai.com/v1/chat/completions',
-        model: 'gpt-4o',
-        keyName: 'gpt4oKey'
+        model: 'gpt-5.1',
+        keyName: 'gpt51Key',
+        reasoningEffort: 'low'
     },
-    O3: {
-        name: 'o3',
+    GPT51_MEDIUM: {
+        name: 'GPT-5.1 Medium',
         apiEndpoint: 'https://api.openai.com/v1/chat/completions',
-        model: 'o3',
-        keyName: 'o3Key'
+        model: 'gpt-5.1',
+        keyName: 'gpt51Key',
+        reasoningEffort: 'medium'
     },
-    O4MINI: {
-        name: 'o4-mini',
+    GPT51_HIGH: {
+        name: 'GPT-5.1 High',
         apiEndpoint: 'https://api.openai.com/v1/chat/completions',
-        model: 'o4-mini',
-        keyName: 'o4miniKey'
-    },
-    CLAUDE: {
-        name: 'Claude 3.7 Sonnet',
-        apiEndpoint: 'https://api.anthropic.com/v1/messages',
-        model: 'claude-3-7-sonnet-20240620',
-        keyName: 'claudeKey'
+        model: 'gpt-5.1',
+        keyName: 'gpt51Key',
+        reasoningEffort: 'high'
     },
     GEMINI_FLASH: {
-        name: 'Gemini 2.0 Flash',
-        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-        model: 'gemini-2.0-flash',
-        keyName: 'geminiFlashKey'
+        name: 'Gemini Flash',
+        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+        model: 'gemini-flash-latest',
+        keyName: 'geminiKey',
+        thinkingMode: 'off'
     },
-    GEMINI_PRO: {
-        name: 'Gemini 2.5 Pro exp (03-25)', // モデル名を指定されたバージョンに合わせて変更
-        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent', // エンドポイントを指定されたバージョンに更新
-        model: 'gemini-2.5-pro-exp-03-25', // モデル識別子を指定されたバージョンに更新
-        keyName: 'geminiProKey' // キー名は変更しない
+    GEMINI_FLASH_THINK: {
+        name: 'Gemini Flash Thinking',
+        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+        model: 'gemini-flash-latest',
+        keyName: 'geminiKey',
+        thinkingMode: 'on'
+    },
+    GEMINI3_PRO_HIGH: {
+        name: 'Gemini 3 Pro high',
+        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent',
+        model: 'gemini-3-pro-preview',
+        keyName: 'geminiKey',
+        thinkingLevel: 'high'
+    },
+    GEMINI3_PRO_LOW: {
+        name: 'Gemini 3 Pro low',
+        apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent',
+        model: 'gemini-3-pro-preview',
+        keyName: 'geminiKey',
+        thinkingLevel: 'low'
     }
 };

@@ -591,8 +591,70 @@ class Game {
                 }
             }
         }
-        
-        return allMoves;
+
+        // 王手を受けている/受ける手を排除（自玉に利きが残る手を除外）
+        const safeMoves = allMoves.filter(move => !this.wouldLeaveKingInCheck(move, player));
+        return safeMoves;
+    }
+
+    /**
+     * 指定プレイヤーが王手かどうか
+     */
+    isPlayerInCheck(player, boardState = this.board.board) {
+        const kingPos = this.findKingPosition(boardState, player);
+        if (!kingPos) return true; // 玉がいない異常状態はチェック扱い
+        return this.isSquareAttacked(boardState, kingPos, this.getOpponent(player));
+    }
+
+    /**
+     * 手を指したと仮定したとき自玉が王手になるか
+     */
+    wouldLeaveKingInCheck(move, player) {
+        const tempBoard = this.applyMoveToBoardCopy(this.board.board, move, player);
+        return this.isPlayerInCheck(player, tempBoard);
+    }
+
+    getOpponent(player) {
+        return player === PLAYER.SENTE ? PLAYER.GOTE : PLAYER.SENTE;
+    }
+
+    applyMoveToBoardCopy(board, move, player) {
+        const temp = board.map(row => row.map(cell => ({ ...cell })));
+        if (move.type === 'move') {
+            const piece = temp[move.from.row][move.from.col];
+            const newType = move.promote ? PROMOTION_MAP[piece.type] || piece.type : piece.type;
+            temp[move.from.row][move.from.col] = { type: PIECE_TYPES.EMPTY, player: null };
+            temp[move.to.row][move.to.col] = { type: newType, player };
+        } else if (move.type === 'drop') {
+            temp[move.to.row][move.to.col] = { type: move.pieceType, player };
+        }
+        return temp;
+    }
+
+    findKingPosition(board, player) {
+        for (let r = 0; r < BOARD_SIZE.ROWS; r++) {
+            for (let c = 0; c < BOARD_SIZE.COLS; c++) {
+                const cell = board[r][c];
+                if (cell.type === PIECE_TYPES.GYOKU && cell.player === player) {
+                    return { row: r, col: c };
+                }
+            }
+        }
+        return null;
+    }
+
+    isSquareAttacked(board, targetPos, attackerPlayer) {
+        for (let r = 0; r < BOARD_SIZE.ROWS; r++) {
+            for (let c = 0; c < BOARD_SIZE.COLS; c++) {
+                const cell = board[r][c];
+                if (cell.player === attackerPlayer) {
+                    if (MoveValidator.isValidMove(board, { row: r, col: c }, targetPos, attackerPlayer)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
     
     /**
