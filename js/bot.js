@@ -179,7 +179,10 @@ class Bot {
         // 持ち駒（先手）
         ctx.fillText(`先手の持ち駒: ${this.formatCapturedPiecesForPrompt(capSente)}`, 8, boardY + boardH + capH / 2 + pad);
 
-        return off.toDataURL('image/png');
+        const dataUrl = off.toDataURL('image/png');
+        // デバッグ用: 直近のスナップショットを参照できるように公開
+        window.__lastBoardSnapshot = dataUrl;
+        return dataUrl;
     }
 
     buildBoardStateJson(boardState) {
