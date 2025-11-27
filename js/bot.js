@@ -47,7 +47,7 @@ class Bot {
         );
 
         const model = LLM_MODELS[modelKey];
-        const apiKey = this.game.settings.getApiKey(modelKey);
+        const apiKey = model.name === 'Debug Dummy' ? 'DUMMY' : this.game.settings.getApiKey(modelKey);
         if (!apiKey) {
             this.thinking = false;
             callback(null, 'APIキーが設定されていません。設定画面で入力してください。', true);
@@ -56,7 +56,11 @@ class Bot {
 
         try {
             const responseText = await this.sendRequestToLLM(model, apiKey, prompt);
-            const move = this.extractMoveFromResponse(responseText, player, legalMoves);
+            let move = this.extractMoveFromResponse(responseText, player, legalMoves);
+            // ダミーモデルは手を指さない
+            if (model.name === 'Debug Dummy') {
+                move = { type: 'noop' };
+            }
             this.thinking = false;
 
             if (move) {
@@ -212,6 +216,8 @@ class Bot {
             case 'GPT-5.1 Medium':
             case 'GPT-5.1 High':
                 return this.sendRequestToOpenAI(model, apiKey, prompt);
+            case 'Debug Dummy':
+                return this.sendRequestToDummy(prompt);
             case 'Gemini Flash':
             case 'Gemini Flash Thinking':
             case 'Gemini 3 Pro high':
@@ -332,6 +338,17 @@ class Bot {
             this.game.onAiThinkingUpdate(text);
         }
         return text;
+    }
+
+    /**
+     * ダミーモデル: API呼び出しなしで固定レスポンスを返す
+     */
+    async sendRequestToDummy(prompt) {
+        return JSON.stringify({
+            move_id: null,
+            notation: 'デバッグ用（手は指しません）',
+            reason: '開発・デバッグ目的のダミーモデルです。盤面や合法手の確認のみ行い、手は指しません。'
+        });
     }
 
     extractMoveFromResponse(response, player, legalMoves) {

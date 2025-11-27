@@ -56,10 +56,13 @@ class Game {
         this.isBrowsingHistory = false; // フラグもリセット
         // AI思考履歴をクリア
         if (this.onAiThinkingUpdate) {
-            this.onAiThinkingUpdate(''); // 空表示
+            this.onAiThinkingUpdate('');
         }
         if (this.ui && this.ui.aiThinkingHistory) {
             this.ui.aiThinkingHistory = [];
+        }
+        if (this.ui && this.ui.hideThinkingIndicator) {
+            this.ui.hideThinkingIndicator();
         }
         this.updateGameState();
         this.board.draw();

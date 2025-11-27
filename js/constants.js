@@ -255,5 +255,11 @@ const LLM_MODELS = {
         model: 'gemini-3-pro-preview',
         keyName: 'geminiKey',
         thinkingLevel: 'low'
+    },
+    DEBUG_DUMMY: {
+        name: 'Debug Dummy',
+        apiEndpoint: 'dummy',
+        model: 'debug-dummy',
+        keyName: 'dummyKey'
     }
 };

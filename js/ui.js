@@ -1,17 +1,16 @@
 ﻿/**
- * ユーザーインターフェースを管理するクラス
+ * UIレイヤーを管理するクラス
  */
 class UI {
     /**
-     * UIのインスタンスを作成
-     * @param {Game} game - ゲームのインスタンス
+     * @param {Game} game - ゲームインスタンス
      */
     constructor(game) {
         this.game = game;
-        this.aiThinkingHistory = []; // 過去の思考ログ
+        this.aiThinkingHistory = [];
         this.aiThinkingIndicator = null;
 
-        // DOM要素
+        // DOM参照
         this.gameStatusElement = document.getElementById('gameStatus');
         this.gameRecordElement = document.getElementById('gameRecord');
         this.capturedPiecesSenteElement = document.getElementById('capturedPiecesSente');
@@ -22,138 +21,108 @@ class UI {
         this.settingsButton = document.getElementById('openApiSettingsBtn');
         this.settingsModal = document.getElementById('settingsModal');
         this.closeModalButton = document.querySelector('.close');
-        this.saveApiSettingsButton = document.getElementById('saveApiSettings');
+        this.saveApiSettingsLocalButton = document.getElementById('saveApiSettingsLocal');
+        this.saveApiSettingsSessionButton = document.getElementById('saveApiSettingsSession');
         this.aiThinkingElement = document.getElementById('aiThinking');
-        this.aiErrorRetryButton = null; // やり直しボタンの参照
+        this.aiErrorRetryButton = null;
         this.aiTitle = document.querySelector('.ai-thinking-title');
 
-        // 成り駒ダイアログ
         this.promotionDialog = null;
-        
-        // イベントリスナーの設定
+
+        // 既存の思考中インジケータがあれば除去し、初期状態で非表示にする
+        const existingIndicator = document.querySelector('.ai-thinking-indicator');
+        if (existingIndicator && existingIndicator.parentNode) {
+            existingIndicator.parentNode.removeChild(existingIndicator);
+        }
+        this.aiThinkingIndicator = null;
+
         this.setupEventListeners();
-        
-        // ゲームイベントハンドラの設定
         this.setupGameEventHandlers();
-        
-        // 持ち駒の表示を更新
         this.updateCapturedPieces();
     }
-    
-    /**
-     * イベントリスナーを設定
-     */
+
+    /** イベントリスナー設定 */
     setupEventListeners() {
-        // 新規ゲームボタン
-        this.newGameButton.addEventListener('click', () => {
-            this.game.initialize();
-        });
-        
-        // 待ったボタン
-        this.undoButton.addEventListener('click', () => {
-            this.game.undoMove();
-        });
-        
-        // ゲームモード選択
+        this.newGameButton.addEventListener('click', () => this.game.initialize());
+        this.undoButton.addEventListener('click', () => this.game.undoMove());
         this.gameModeSelect.addEventListener('change', () => {
             this.game.setGameMode(this.gameModeSelect.value);
         });
-        
-        // API設定ボタン
-        if (this.settingsButton) {
-            this.settingsButton.addEventListener('click', () => {
-                this.openSettingsModal();
-            });
-        }
 
-        // モーダルを閉じるボタン
-        if (this.closeModalButton) {
-            this.closeModalButton.addEventListener('click', () => {
-                this.closeSettingsModal();
-            });
+        if (this.settingsButton) {
+            this.settingsButton.addEventListener('click', () => this.openSettingsModal());
         }
-        
-        // API設定保存ボタン
-        this.saveApiSettingsButton.addEventListener('click', () => {
-            this.saveApiSettings();
-        });
+        if (this.closeModalButton) {
+            this.closeModalButton.addEventListener('click', () => this.closeSettingsModal());
+        }
+        if (this.saveApiSettingsLocalButton) {
+            this.saveApiSettingsLocalButton.addEventListener('click', () => this.saveApiSettings('local'));
+        }
+        if (this.saveApiSettingsSessionButton) {
+            this.saveApiSettingsSessionButton.addEventListener('click', () => this.saveApiSettings('session'));
+        }
     }
-    
-    /**
-     * ゲームイベントハンドラを設定
-     */
+
+    /** Game 側のイベントハンドラ設定 */
     setupGameEventHandlers() {
-        this.game.onGameStateUpdate = (state) => {
-            this.updateGameStatus(state);
-        };
-        this.game.onGameRecordUpdate = (gameHistory) => {
-            this.updateGameRecord(gameHistory);
-        };
-        this.game.onPromotionDialogOpen = (fromPos, toPos) => {
-            this.showPromotionDialog(fromPos, toPos);
-        };
-        this.game.onCapturedPiecesUpdate = () => {
-            this.updateCapturedPieces();
-        };
-        this.game.onAiThinkingUpdate = (content) => {
-            this.updateAiThinking(content);
-        };
-        this.game.onAiError = (errorMessage) => {
-            this.handleAiError(errorMessage);
-        };
+        this.game.onGameStateUpdate = (state) => this.updateGameStatus(state);
+        this.game.onGameRecordUpdate = (history) => this.updateGameRecord(history);
+        this.game.onPromotionDialogOpen = (fromPos, toPos) => this.showPromotionDialog(fromPos, toPos);
+        this.game.onCapturedPiecesUpdate = () => this.updateCapturedPieces();
+        this.game.onAiThinkingUpdate = (content) => this.updateAiThinking(content);
+        this.game.onAiError = (errorMessage) => this.handleAiError(errorMessage);
     }
-    
-    /**
-     * ゲーム状態の表示を更新
-     */
+
+    /** ゲーム状態表示 */
     updateGameStatus(state) {
         let statusText = '';
         if (state.gameResult) {
-            statusText = state.gameResult === 'sente_win' ? '先手の勝ちです！' : '後手の勝ちです！';
+            statusText = state.gameResult === 'sente_win' ? '先手の勝ちです' : '後手の勝ちです';
         } else if (state.aiThinking) {
             statusText = 'AIが思考中...';
         } else {
-            const playerText = state.currentPlayer === PLAYER.SENTE ? '先手' : '後手';
-            statusText = `${playerText}の手番です`;
+            statusText = (state.currentPlayer === PLAYER.SENTE ? '先手' : '後手') + 'の手番です';
         }
-        this.gameStatusElement.textContent = statusText;
+        if (this.gameStatusElement) {
+            this.gameStatusElement.textContent = statusText;
+        }
     }
-    
-    /**
-     * 棋譜の表示を更新
-     */
+
+    /** 棋譜表示を更新 */
     updateGameRecord(gameHistory) {
+        if (!this.gameRecordElement) return;
         this.gameRecordElement.innerHTML = '';
         gameHistory.forEach((move, index) => {
-            const moveElement = document.createElement('div');
-            moveElement.className = 'move-record';
-            moveElement.dataset.index = index;
+            const el = document.createElement('div');
+            el.className = 'move-record';
+            el.dataset.index = index;
             const moveNumber = Math.floor(index / 2) + 1;
             const playerMark = move.player === PLAYER.SENTE ? '▲' : '△';
             let moveText = '';
+            const toRowMap = ['一','二','三','四','五','六','七','八','九'];
             if (move.type === 'move') {
                 const pieceName = PIECE_NAMES[move.pieceType];
                 const toCol = 9 - move.to.col;
-                const toRow = ['一', '二', '三', '四', '五', '六', '七', '八', '九'][move.to.row];
+                const toRow = toRowMap[move.to.row];
                 moveText = `${playerMark}${toCol}${toRow}${pieceName}`;
                 if (move.promote) moveText += '成';
                 if (move.capture) moveText += '(取)';
             } else if (move.type === 'drop') {
                 const pieceName = PIECE_NAMES[move.pieceType];
                 const toCol = 9 - move.to.col;
-                const toRow = ['一', '二', '三', '四', '五', '六', '七', '八', '九'][move.to.row];
+                const toRow = toRowMap[move.to.row];
                 moveText = `${playerMark}${toCol}${toRow}${pieceName}打`;
             }
-            moveElement.textContent = `${moveNumber}. ${moveText}`;
-            moveElement.addEventListener('click', () => {
+            el.textContent = `${moveNumber}. ${moveText}`;
+            el.addEventListener('click', () => {
                 this.game.replayMove(index);
-                document.querySelectorAll('.move-record.current-move').forEach(el => el.classList.remove('current-move'));
-                moveElement.classList.add('current-move');
+                document.querySelectorAll('.move-record.current-move').forEach(x => x.classList.remove('current-move'));
+                el.classList.add('current-move');
             });
-            this.gameRecordElement.appendChild(moveElement);
+            this.gameRecordElement.appendChild(el);
         });
     }
-    
+
     updateCapturedPieces() {
         this.updateCapturedPiecesForPlayer(PLAYER.SENTE);
         this.updateCapturedPiecesForPlayer(PLAYER.GOTE);
@@ -161,8 +130,9 @@ class UI {
 
     updateCapturedPiecesForPlayer(player) {
         const element = player === PLAYER.SENTE ? this.capturedPiecesSenteElement : this.capturedPiecesGoteElement;
+        if (!element) return;
         element.innerHTML = '';
-        const capturedPieces = this.game.board.capturedPieces[player];
+        const capturedPieces = this.game.board.capturedPieces[player] || [];
         capturedPieces.forEach((piece, idx) => {
             const pieceName = PIECE_NAMES[piece.type];
             const pieceElement = document.createElement('div');
@@ -173,11 +143,8 @@ class UI {
             pieceElement.addEventListener('click', () => {
                 const index = parseInt(pieceElement.dataset.index, 10);
                 this.game.handleCapturedPieceClick(player, index);
-
-                // 選択状態の視覚反映：現在選択されているかをゲーム状態から判定
                 this.updateCapturedPieces();
             });
-            // 現在選択中なら強調
             if (this.game.selectedCapturedPiece &&
                 this.game.selectedCapturedPiece.player === player &&
                 this.game.selectedCapturedPiece.index === idx) {
@@ -191,209 +158,227 @@ class UI {
         if (this.promotionDialog) {
             document.body.removeChild(this.promotionDialog);
         }
-        this.promotionDialog = document.createElement('div');
-        this.promotionDialog.className = 'promotion-dialog';
+        const dialog = document.createElement('div');
+        dialog.className = 'promotion-dialog';
         const boardRect = this.game.board.canvas.getBoundingClientRect();
         const cellSize = this.game.board.cellSize;
         const boardMargin = this.game.board.boardMargin;
-        const x = boardRect.left + boardMargin + toPos.col * cellSize;
-        const y = boardRect.top + boardMargin + toPos.row * cellSize;
-        this.promotionDialog.style.left = `${x}px`;
-        this.promotionDialog.style.top = `${y}px`;
+        dialog.style.left = `${boardRect.left + boardMargin + toPos.col * cellSize}px`;
+        dialog.style.top = `${boardRect.top + boardMargin + toPos.row * cellSize}px`;
+
         const piece = this.game.board.board[fromPos.row][fromPos.col];
         const pieceName = PIECE_NAMES[piece.type];
         const promotedPieceName = PIECE_NAMES[PROMOTION_MAP[piece.type]];
+
         const message = document.createElement('div');
         message.textContent = `${pieceName}を成りますか？`;
-        this.promotionDialog.appendChild(message);
+        dialog.appendChild(message);
+
         const promoteButton = document.createElement('button');
-        promoteButton.textContent = `成る（${promotedPieceName}）`;
+        promoteButton.textContent = `成る (${promotedPieceName})`;
         promoteButton.addEventListener('click', () => {
             this.game.handlePromotionDialogResult(true);
-            document.body.removeChild(this.promotionDialog);
+            document.body.removeChild(dialog);
             this.promotionDialog = null;
         });
-        this.promotionDialog.appendChild(promoteButton);
+        dialog.appendChild(promoteButton);
+
         const dontPromoteButton = document.createElement('button');
-        dontPromoteButton.textContent = `成らない（${pieceName}）`;
+        dontPromoteButton.textContent = `成らない (${pieceName})`;
         dontPromoteButton.addEventListener('click', () => {
             this.game.handlePromotionDialogResult(false);
-            document.body.removeChild(this.promotionDialog);
+            document.body.removeChild(dialog);
             this.promotionDialog = null;
         });
-        this.promotionDialog.appendChild(dontPromoteButton);
-        document.body.appendChild(this.promotionDialog);
+        dialog.appendChild(dontPromoteButton);
+
+        document.body.appendChild(dialog);
+        this.promotionDialog = dialog;
     }
 
     openSettingsModal() {
         this.loadApiSettings();
-        this.settingsModal.style.display = 'block';
+        if (this.settingsModal) this.settingsModal.style.display = 'block';
     }
 
     closeSettingsModal() {
-        this.settingsModal.style.display = 'none';
+        if (this.settingsModal) this.settingsModal.style.display = 'none';
     }
 
     loadApiSettings() {
         Object.values(LLM_MODELS).forEach(model => {
-            const key = localStorage.getItem(model.keyName);
-            if (key) {
-                const input = document.getElementById(model.keyName);
-                if (input) input.value = key;
-                if (window.settings) {
-                    window.settings.apiKeys[model.keyName] = key;
-                }
-            }
+            const input = document.getElementById(model.keyName);
+            if (!input) return;
+            const key = window.settings?.apiKeys?.[model.keyName] || '';
+            input.value = key;
         });
         const g3 = document.getElementById('gemini3Thinking');
-        if (g3 && window.settings) {
-            g3.value = window.settings.getGemini3Thinking();
-        }
+        if (g3 && window.settings) g3.value = window.settings.getGemini3Thinking();
         const gf = document.getElementById('geminiFlashThinking');
-        if (gf && window.settings) {
-            gf.value = window.settings.getGeminiFlashThinking();
-        }
+        if (gf && window.settings) gf.value = window.settings.getGeminiFlashThinking();
     }
 
-    saveApiSettings() {
-        Object.values(LLM_MODELS).forEach(model => {
-            const input = document.getElementById(model.keyName);
+    /**
+     * API設定を保存
+     * @param {'local'|'session'} mode
+     */
+    saveApiSettings(mode = 'local') {
+        const uniqueKeys = Array.from(new Set(Object.values(LLM_MODELS).map(m => m.keyName)));
+        uniqueKeys.forEach(keyName => {
+            const input = document.getElementById(keyName);
             const key = input ? input.value : '';
             if (key) {
-                localStorage.setItem(model.keyName, key);
-                if (window.settings) window.settings.apiKeys[model.keyName] = key;
+                window.settings.apiKeys[keyName] = key;
             } else {
-                localStorage.removeItem(model.keyName);
-                if (window.settings) window.settings.apiKeys[model.keyName] = null;
+                window.settings.apiKeys[keyName] = null;
             }
         });
-        const g3 = document.getElementById('gemini3Thinking');
-        if (g3 && window.settings) {
-            window.settings.setGemini3Thinking(g3.value);
-        }
-        const gf = document.getElementById('geminiFlashThinking');
-        if (gf && window.settings) {
-            window.settings.setGeminiFlashThinking(gf.value);
-        }
+        window.settings.saveSettings(mode);
         this.closeSettingsModal();
-        alert('API設定を保存しました');
+        const msg = mode === 'session'
+            ? 'APIキーを一時的に保存しました（このタブを閉じると消えます）'
+            : 'APIキーをブラウザに保存しました（localStorage）';
+        alert(msg);
     }
 
-    updateAiThinking(content) {
+    /**
+     * AI思考内容を表示（履歴を保持）
+     */
+        updateAiThinking(content) {
         if (!this.aiThinkingElement) return;
-        this.clearAiErrorDisplay(false); // エラー表示だけクリア、履歴は残す
-        const parsed = this.tryParseAiJson(content);
+
+        const parsed = this.tryParseMoveJson(content);
         if (parsed) {
-            const entry = {
-                moveId: parsed.move_id ?? null,
-                notation: parsed.notation ?? null,
-                reason: parsed.reason ?? ''
-            };
-            const last = this.aiThinkingHistory[this.aiThinkingHistory.length - 1];
-            const sameAsLast = last &&
-                last.moveId === entry.moveId &&
-                last.notation === entry.notation &&
-                last.reason === entry.reason;
-            if (!sameAsLast) {
-                this.aiThinkingHistory.push(entry);
-                if (this.aiThinkingHistory.length > 30) this.aiThinkingHistory.shift(); // 古いものから削除
-            }
+            this.aiThinkingHistory.push(parsed);
+            if (this.aiThinkingHistory.length > 30) this.aiThinkingHistory.shift();
+            this.hideThinkingIndicator();
             this.renderThinkingHistory();
         } else {
-            // 非JSONはタイトル横のインジケータに表示し、履歴は消さない
-            this.showThinkingIndicator(content);
+            if (!content) {
+                this.hideThinkingIndicator();
+                if (this.aiThinkingHistory.length > 0) {
+                    this.renderThinkingHistory();
+                } else {
+                    this.aiThinkingElement.textContent = '';
+                }
+                return;
+            }
+
+            const text = this.sanitizeText(content);
+            this.showThinkingIndicator(text || '思考中…');
+            if (this.aiThinkingHistory.length > 0) {
+                this.renderThinkingHistory();
+            } else {
+                this.aiThinkingElement.textContent = '';
+            }
         }
     }
 
+    /** AI表示クリア（履歴もクリア） */
     hideAiThinking() {
-        if (!this.aiThinkingElement) return;
-        this.aiThinkingElement.innerHTML = '';
-        this.clearAiErrorDisplay();
-    }
-
-    handleAiError(errorMessage) {
-        if (!this.aiThinkingElement) return;
-        this.clearAiErrorDisplay();
-        const errorElement = document.createElement('div');
-        errorElement.className = 'ai-error-message';
-        errorElement.textContent = `エラーが発生しました: ${errorMessage}`;
-        this.aiThinkingElement.appendChild(errorElement);
-        this.aiErrorRetryButton = document.createElement('button');
-        this.aiErrorRetryButton.id = 'retryAiMoveBtn';
-        this.aiErrorRetryButton.textContent = 'AIの手番をやり直す';
-        this.aiErrorRetryButton.addEventListener('click', () => {
-            this.retryAiMove();
-        });
-        this.aiThinkingElement.appendChild(this.aiErrorRetryButton);
-        this.aiThinkingElement.scrollTop = this.aiThinkingElement.scrollHeight;
-    }
-
-    retryAiMove() {
-        this.clearAiErrorDisplay();
-        this.game.makeBotMove();
-    }
-
-    clearAiErrorDisplay(removeHistory = true) {
-        if (!this.aiThinkingElement) return;
-        this.aiThinkingElement.querySelectorAll('.ai-error-message').forEach(el => el.remove());
-        if (this.aiErrorRetryButton && this.aiErrorRetryButton.parentNode === this.aiThinkingElement) {
-            this.aiThinkingElement.removeChild(this.aiErrorRetryButton);
+        if (this.aiThinkingElement) {
+            this.aiThinkingElement.textContent = '';
         }
-        this.aiErrorRetryButton = null;
-        if (removeHistory) {
-            this.aiThinkingHistory = [];
+        this.aiThinkingHistory = [];
+        this.hideThinkingIndicator();
+    }
+
+    /** AIエラー表示（履歴は保持） */
+    handleAiError(errorMessage) {
+        const safeText = this.sanitizeText(errorMessage || 'AIエラーが発生しました');
+        if (this.aiThinkingElement) {
+            this.aiThinkingElement.textContent = safeText;
         }
         this.hideThinkingIndicator();
     }
 
-    /**
-     * AI応答からJSONを抽出してパース
-     */
-    tryParseAiJson(text) {
-        if (!text) return null;
-        const match = text.match(/\{[\s\S]*\}/);
-        if (!match) return null;
+    /** 値を安全な文字列に変換 */
+    sanitizeText(value) {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'string') return value;
         try {
-            return JSON.parse(match[0]);
-        } catch (e) {
-            return null;
+            return JSON.stringify(value);
+        } catch {
+            return String(value);
         }
     }
 
-    /**
-     * HTMLエスケープ
-     */
-    escapeHtml(str) {
-        return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+    /** AI応答から move_id / notation / reason を持つJSONを抜き出す */
+    tryParseMoveJson(text) {
+        if (!text) return null;
+        let target = text;
+        if (typeof text !== 'string') {
+            try {
+                target = JSON.stringify(text);
+            } catch {
+                return null;
+            }
+        }
+        const match = target.match(/\{[\s\S]*\}/);
+        if (!match) return null;
+        try {
+            const obj = JSON.parse(match[0]);
+            if (obj && (obj.move_id !== undefined || obj.notation || obj.reason)) {
+                return obj;
+            }
+        } catch {
+            return null;
+        }
+        return null;
     }
 
-    /**
-     * 思考履歴を描画
-     */
+    /** moveカードを生成（すべて textContent で安全表示） */
+    createMoveBlock(parsed, isLatest = false) {
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-move-block' + (isLatest ? ' latest' : '');
+
+        const metaId = document.createElement('p');
+        metaId.className = 'ai-move-meta';
+        const idLabel = document.createElement('span');
+        idLabel.className = 'ai-label';
+        idLabel.textContent = 'move_id';
+        const idVal = document.createElement('span');
+        idVal.textContent = this.sanitizeText(parsed.move_id ?? '');
+        metaId.appendChild(idLabel);
+        metaId.appendChild(idVal);
+
+        const metaNotation = document.createElement('p');
+        metaNotation.className = 'ai-move-meta';
+        const notationLabel = document.createElement('span');
+        notationLabel.className = 'ai-label';
+        notationLabel.textContent = 'notation';
+        const notationVal = document.createElement('span');
+        notationVal.textContent = this.sanitizeText(parsed.notation ?? '');
+        metaNotation.appendChild(notationLabel);
+        metaNotation.appendChild(notationVal);
+
+        const reason = document.createElement('div');
+        reason.className = 'ai-move-reason';
+        reason.textContent = this.sanitizeText(parsed.reason ?? '');
+
+        wrap.appendChild(metaId);
+        wrap.appendChild(metaNotation);
+        wrap.appendChild(reason);
+        return wrap;
+    }
+
+    /** 履歴をまとめて描画（最新だけ強調） */
     renderThinkingHistory() {
         if (!this.aiThinkingElement) return;
-        const blocks = this.aiThinkingHistory.map((entry, idx, arr) => {
-            const isLatest = idx === arr.length - 1;
-            return `
-                <div class="ai-move-block${isLatest ? ' latest' : ''}">
-                    <div class="ai-move-meta"><span class="ai-label">move_id</span> ${entry.moveId ?? '―'}</div>
-                    <div class="ai-move-meta"><span class="ai-label">notation</span> ${entry.notation ?? '―'}</div>
-                    <div class="ai-move-reason">${entry.reason ? this.escapeHtml(entry.reason) : '理由なし'}</div>
-                </div>
-            `;
-        }).join('');
-        this.aiThinkingElement.innerHTML = blocks || '思考履歴はありません';
+        this.aiThinkingElement.innerHTML = '';
+        const len = this.aiThinkingHistory.length;
+        if (len === 0) {
+            this.aiThinkingElement.textContent = '思考履歴はありません';
+            return;
+        }
+        this.aiThinkingHistory.forEach((entry, idx) => {
+            const block = this.createMoveBlock(entry, idx === len - 1);
+            this.aiThinkingElement.appendChild(block);
+        });
         this.aiThinkingElement.scrollTop = this.aiThinkingElement.scrollHeight;
     }
 
-    /**
-     * 思考中インジケータ（タイトル横）表示
-     */
+    /** 思考中インジケータ（タイトル横）表示 */
     showThinkingIndicator(text = '思考中...') {
         if (!this.aiTitle) return;
         if (!this.aiThinkingIndicator) {
@@ -411,3 +396,4 @@ class UI {
         this.aiThinkingIndicator = null;
     }
 }
+

@@ -1,29 +1,29 @@
-/**
+﻿/**
  * 設定を管理するクラス
  */
 class Settings {
     constructor() {
-        // APIキー
-        this.apiKeys = {
-            gpt51Key: null,
-            geminiKey: null
-        };
-
-        // モデルごとの思考設定（モデル名で分岐）
+        this.apiKeys = { gpt51Key: null, geminiKey: null, dummyKey: 'N/A' };
         this.gemini3Thinking = 'high';   // 'high' | 'low'
         this.geminiFlashThinking = 'on'; // 'on' | 'off'
-
         this.llmModels = Object.keys(LLM_MODELS);
         this.selectedModel = 'GPT51_MEDIUM';
-
+        this.storageMode = 'local'; // 'local' | 'session'
         this.loadSettings();
     }
 
     loadSettings() {
+        // APIキー: sessionStorage を優先、なければ localStorage
         Object.values(LLM_MODELS).forEach(model => {
-            const key = localStorage.getItem(model.keyName);
+            const sessionKey = sessionStorage.getItem(model.keyName);
+            const localKey = localStorage.getItem(model.keyName);
+            const key = sessionKey || localKey || null;
             if (key) this.apiKeys[model.keyName] = key;
         });
+
+        const storedMode = sessionStorage.getItem('storageMode') || localStorage.getItem('storageMode');
+        if (storedMode === 'session' || storedMode === 'local') this.storageMode = storedMode;
+
         const selectedModel = localStorage.getItem('selectedModel');
         if (selectedModel && this.llmModels.includes(selectedModel)) {
             this.selectedModel = selectedModel;
@@ -34,20 +34,36 @@ class Settings {
         if (gf === 'on' || gf === 'off') this.geminiFlashThinking = gf;
     }
 
-    saveSettings() {
-        Object.entries(this.apiKeys).forEach(([key, value]) => {
-            if (value) localStorage.setItem(key, value);
-            else localStorage.removeItem(key);
-        });
+    /**
+     * APIキー・モデル選択を保存
+     * @param {'local'|'session'} mode
+     */
+    saveSettings(mode = 'local') {
+        this.storageMode = mode;
+        this.persistApiKeys(mode);
         localStorage.setItem('selectedModel', this.selectedModel);
         localStorage.setItem('gemini3Thinking', this.gemini3Thinking);
         localStorage.setItem('geminiFlashThinking', this.geminiFlashThinking);
+        // ストレージモードは両方に記録（次回起動時に参照しやすくするため）
+        localStorage.setItem('storageMode', mode);
+        sessionStorage.setItem('storageMode', mode);
     }
 
-    setApiKey(modelKey, apiKey) {
+    persistApiKeys(mode) {
+        const target = mode === 'session' ? sessionStorage : localStorage;
+        const other = mode === 'session' ? localStorage : sessionStorage;
+        Object.entries(this.apiKeys).forEach(([key, value]) => {
+            if (value) target.setItem(key, value);
+            else target.removeItem(key);
+            // 片方に保存するときはもう片方から削除して残留を防ぐ
+            other.removeItem(key);
+        });
+    }
+
+    setApiKey(modelKey, apiKey, mode = this.storageMode) {
         if (LLM_MODELS[modelKey]) {
             this.apiKeys[LLM_MODELS[modelKey].keyName] = apiKey;
-            this.saveSettings();
+            this.saveSettings(mode);
         }
     }
 
@@ -58,7 +74,7 @@ class Settings {
     setSelectedModel(modelKey) {
         if (this.llmModels.includes(modelKey)) {
             this.selectedModel = modelKey;
-            this.saveSettings();
+            this.saveSettings(this.storageMode);
         }
     }
 
@@ -69,7 +85,7 @@ class Settings {
     setGemini3Thinking(level) {
         if (level === 'high' || level === 'low') {
             this.gemini3Thinking = level;
-            this.saveSettings();
+            this.saveSettings(this.storageMode);
         }
     }
 
@@ -80,7 +96,7 @@ class Settings {
     setGeminiFlashThinking(mode) {
         if (mode === 'on' || mode === 'off') {
             this.geminiFlashThinking = mode;
-            this.saveSettings();
+            this.saveSettings(this.storageMode);
         }
     }
 
@@ -100,6 +116,7 @@ class Settings {
         Object.keys(this.apiKeys).forEach(key => {
             this.apiKeys[key] = null;
             localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
         });
     }
 
@@ -108,7 +125,8 @@ class Settings {
             apiKeys: { ...this.apiKeys },
             selectedModel: this.selectedModel,
             gemini3Thinking: this.gemini3Thinking,
-            geminiFlashThinking: this.geminiFlashThinking
+            geminiFlashThinking: this.geminiFlashThinking,
+            storageMode: this.storageMode
         };
     }
 
@@ -123,7 +141,10 @@ class Settings {
         if (settings.geminiFlashThinking === 'on' || settings.geminiFlashThinking === 'off') {
             this.geminiFlashThinking = settings.geminiFlashThinking;
         }
-        this.saveSettings();
+        if (settings.storageMode === 'session' || settings.storageMode === 'local') {
+            this.storageMode = settings.storageMode;
+        }
+        this.saveSettings(this.storageMode);
     }
 }
 
@@ -180,6 +201,9 @@ function addSettingsModalStyles() {
         .promotion-dialog button { margin: 5px; padding: 5px 10px; }
         .captured-piece { display: inline-block; margin: 5px; padding: 5px 10px; background-color: #f8c06c; border: 1px solid #333; border-radius: 4px; cursor: pointer; }
         .captured-piece:hover { background-color: #f0b050; }
+        .api-save-buttons { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+        .api-save-buttons button { margin-right: 0; }
+        .api-note { margin-top: 10px; font-size: 13px; color: #555; line-height: 1.4; }
     `;
     document.head.appendChild(style);
 }
