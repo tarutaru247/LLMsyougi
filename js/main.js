@@ -42,43 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // AI選択ボタンのイベント
-    const aiSelectBtn = document.getElementById('aiSelectBtn');
-    if (aiSelectBtn) {
-        aiSelectBtn.addEventListener('click', () => {
-            // モーダルを生成
-            let aiModal = document.getElementById('aiSelectModal');
-            if (!aiModal) {
-                aiModal = document.createElement('div');
-                aiModal.id = 'aiSelectModal';
-                aiModal.className = 'modal';
-                aiModal.innerHTML = `
-                    <div class="modal-content">
-                        <span class="close" id="closeAiSelectModal">&times;</span>
-                        <h2>AIモデル選択</h2>
-                        <div id="aiModelSelectorContainer"></div>
-                    </div>
-                `;
-                document.body.appendChild(aiModal);
-            }
-            // モデル選択UIを挿入
-            const container = document.getElementById('aiModelSelectorContainer');
-            if (container) {
-                createModelSelector(container, settings, (modelKey) => {
-                    console.log(`モデルを変更: ${LLM_MODELS[modelKey].name}`);
-                });
-            }
-            aiModal.style.display = 'block';
-            // 閉じるボタン
-            const closeBtn = document.getElementById('closeAiSelectModal');
-            if (closeBtn) {
-                closeBtn.onclick = () => {
-                    aiModal.style.display = 'none';
-                };
-            }
-        });
-    }
-    
     // ゲームモードの拡張
     const gameModeSelect = document.getElementById('gameMode');
     
