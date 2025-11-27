@@ -93,6 +93,11 @@ class Bot {
      */
     createPromptForLLM(player, boardState, capturedPieces, gameHistory, legalMoves, modelKey) {
         const turnText = player === PLAYER.SENTE ? '先手' : '後手';
+        const roleText = `あなたは${turnText}です。`;
+        const lastMove = gameHistory && gameHistory.length > 0 ? gameHistory[gameHistory.length - 1] : null;
+        const lastMoveText = lastMove
+            ? `直前の一手: ${lastMove.player === PLAYER.SENTE ? '先手' : '後手'} が ${this.moveToNotation(lastMove)}`
+            : '直前の一手: まだありません';
         const inCheck = this.game.isPlayerInCheck(player);
         // 盤面をSFEN風の簡潔JSONで渡す（square, owner, piece, promoted）
         const boardJson = this.buildBoardStateJson(boardState);
@@ -104,6 +109,8 @@ class Bot {
 
         const instruction = [
             'あなたは将棋の指し手選択エージェントです。以下の合法手リストから最善の1手だけを選び、必ず1行JSONで返してください。',
+            roleText,
+            lastMoveText,
             `現在の手番: ${turnText}。現在王手: ${inCheck ? 'はい' : 'いいえ'}。王手を受けている場合は回避を最優先。`,
             thinkingDirective,
             '出力は1行JSONのみ（コードブロック禁止）。キー: move_id, notation, reason。',
