@@ -321,9 +321,21 @@ class Game {
         
         // ゲーム状態を更新
         this.updateGameState();
-        
+
+        // 手番側に合法手があるか確認。無ければ詰み/手詰まりと判定
+        const legal = this.getAllPossibleMoves(this.currentPlayer);
+        if (legal.length === 0) {
+            const inCheck = this.isPlayerInCheck(this.currentPlayer);
+            this.gameResult = this.currentPlayer === PLAYER.SENTE ? 'gote_win' : 'sente_win';
+            if (this.onAiThinkingUpdate) {
+                this.onAiThinkingUpdate(inCheck ? '詰み（合法手なし）' : '手詰まり（合法手なし）');
+            }
+            this.updateGameState();
+            return;
+        }
+
         // LLMモードで、現在の手番がGOTEの場合はLLMの手を指す
-        if (this.gameMode === 'llm' && this.currentPlayer === PLAYER.GOTE) {
+        if (this.gameMode === 'llm' && this.currentPlayer === PLAYER.GOTE && !this.aiThinking) {
             setTimeout(() => this.makeBotMove(), 500); // makeBotMove は LLM の手を指すメソッド
         }
     }
@@ -332,6 +344,24 @@ class Game {
      * BOTに手を選択させる
      */
     makeBotMove() {
+        // ガード: 進行中でない / 手番でない / すでに思考中なら何もしない
+        if (this.gameResult !== null) return;
+        if (this.gameMode !== 'llm') return;
+        // 現状AIは後手担当とする（必要なら設定で拡張）
+        if (this.currentPlayer !== PLAYER.GOTE) return;
+        if (this.aiThinking) return;
+
+        // 合法手が無い＝詰み/行き場なし
+        const preLegal = this.getAllPossibleMoves(this.currentPlayer);
+        if (preLegal.length === 0) {
+            const inCheck = this.isPlayerInCheck(this.currentPlayer);
+            this.gameResult = this.currentPlayer === PLAYER.SENTE ? 'gote_win' : 'sente_win';
+            const msg = inCheck ? '詰み（合法手なし）' : '手詰まり（合法手なし）';
+            if (this.onAiThinkingUpdate) this.onAiThinkingUpdate(msg);
+            this.updateGameState();
+            return;
+        }
+
         // AIの思考状態を更新
         this.aiThinking = true;
         this.updateGameState();

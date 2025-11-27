@@ -358,6 +358,9 @@ class Board {
         
         // 駒を取った場合は持ち駒に追加
         if (capturedPiece.type !== PIECE_TYPES.EMPTY) {
+            if (!this.capturedPieces[piece.player]) {
+                this.capturedPieces[piece.player] = [];
+            }
             // 成り駒を元に戻す
             let capturedType = capturedPiece.type;
             const unpromoted = UNPROMOTED_PIECE[capturedType];
@@ -403,6 +406,9 @@ class Board {
         // 打てるかどうかをチェック（forceがtrueの場合はスキップ）
         if (!force && !MoveValidator.canDropPiece(this.board, pos, pieceType, player)) {
             return false;
+        }
+        if (!this.capturedPieces[player]) {
+            this.capturedPieces[player] = [];
         }
         
         // 盤外への打ちは不可（forceでも不可）

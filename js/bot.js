@@ -30,6 +30,13 @@ class Bot {
         const gameHistory = this.game.gameHistory;
         const legalMoves = this.game.getAllPossibleMoves(player);
 
+        // 合法手が無い場合は詰み/手詰まりとみなし終了
+        if (!legalMoves.length) {
+            this.thinking = false;
+            callback(null, '合法手がありません（詰み/手詰まり）', true);
+            return;
+        }
+
         const prompt = this.createPromptForLLM(
             player,
             boardState,
@@ -223,7 +230,11 @@ class Bot {
             ],
             stream: true
         };
-        if (model.model !== 'gpt-5.1') {
+        // GPT-5.1: reasoning_effort を使用。temperature/top_p は併用しない。
+        if (model.model === 'gpt-5.1' && model.reasoningEffort) {
+            body.reasoning_effort = model.reasoningEffort; // 'low'|'medium'|'high'
+        } else {
+            // 旧モデルのみ温度を設定
             body.temperature = 0.2;
         }
 
