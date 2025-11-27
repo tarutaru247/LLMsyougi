@@ -381,6 +381,26 @@ class Bot {
         return s;
     }
 
+    /**
+     * モデル別の思考指示を返す
+     */
+    getThinkingDirective(modelKey) {
+        if (!this.game || !this.game.settings) return '';
+        if (modelKey === 'GEMINI3_PRO_HIGH' || modelKey === 'GEMINI3_PRO_LOW') {
+            const level = modelKey.endsWith('HIGH') ? 'high' : 'low';
+            return `思考レベル: ${level}（${level === 'high' ? '詳細に' : '簡潔に'}理由を記述。出力は1行JSONのみ）`;
+        }
+        if (modelKey === 'GEMINI_FLASH_THINK' || modelKey === 'GEMINI_FLASH') {
+            const mode = modelKey === 'GEMINI_FLASH_THINK' ? 'on' : 'off';
+            if (mode === 'on') {
+                return '思考モード: on（reasonに短い思考要約を含める）。出力は1行JSONのみ。';
+            } else {
+                return '思考モード: off（reasonは簡潔に）。出力は1行JSONのみ。';
+            }
+        }
+        return '';
+    }
+
     isMoveInLegalMovesList(move, legalMoves) {
         return legalMoves?.some(m =>
             m.type === move.type &&
