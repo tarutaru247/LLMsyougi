@@ -8,6 +8,8 @@ class Settings {
         this.geminiFlashThinking = 'on'; // 'on' | 'off'
         this.llmModels = Object.keys(LLM_MODELS);
         this.selectedModel = 'GPT51_MEDIUM';
+        this.selectedModelSente = this.selectedModel;
+        this.selectedModelGote = this.selectedModel;
         this.storageMode = 'local'; // 'local' | 'session'
         this.loadSettings();
     }
@@ -28,6 +30,18 @@ class Settings {
         if (selectedModel && this.llmModels.includes(selectedModel)) {
             this.selectedModel = selectedModel;
         }
+        const selectedSente = localStorage.getItem('selectedModelSente');
+        if (selectedSente && this.llmModels.includes(selectedSente)) {
+            this.selectedModelSente = selectedSente;
+        } else {
+            this.selectedModelSente = this.selectedModel;
+        }
+        const selectedGote = localStorage.getItem('selectedModelGote');
+        if (selectedGote && this.llmModels.includes(selectedGote)) {
+            this.selectedModelGote = selectedGote;
+        } else {
+            this.selectedModelGote = this.selectedModel;
+        }
         const g3 = localStorage.getItem('gemini3Thinking');
         if (g3 === 'high' || g3 === 'low') this.gemini3Thinking = g3;
         const gf = localStorage.getItem('geminiFlashThinking');
@@ -42,6 +56,8 @@ class Settings {
         this.storageMode = mode;
         this.persistApiKeys(mode);
         localStorage.setItem('selectedModel', this.selectedModel);
+        localStorage.setItem('selectedModelSente', this.selectedModelSente);
+        localStorage.setItem('selectedModelGote', this.selectedModelGote);
         localStorage.setItem('gemini3Thinking', this.gemini3Thinking);
         localStorage.setItem('geminiFlashThinking', this.geminiFlashThinking);
         // ストレージモードは両方に記録（次回起動時に参照しやすくするため）
@@ -78,6 +94,20 @@ class Settings {
         }
     }
 
+    setSelectedModelForPlayer(player, modelKey) {
+        if (!this.llmModels.includes(modelKey)) return;
+        if (player === PLAYER.SENTE) {
+            this.selectedModelSente = modelKey;
+        } else {
+            this.selectedModelGote = modelKey;
+        }
+        this.saveSettings(this.storageMode);
+    }
+
+    getSelectedModelForPlayer(player) {
+        return player === PLAYER.SENTE ? this.selectedModelSente : this.selectedModelGote;
+    }
+
     getSelectedModel() {
         return this.selectedModel;
     }
@@ -108,6 +138,11 @@ class Settings {
         return !!this.getApiKey(this.selectedModel);
     }
 
+    hasSelectedModelApiKeyForPlayer(player) {
+        const modelKey = this.getSelectedModelForPlayer(player);
+        return !!this.getApiKey(modelKey);
+    }
+
     getAvailableModels() {
         return this.llmModels.filter(m => this.getApiKey(m));
     }
@@ -124,6 +159,8 @@ class Settings {
         return {
             apiKeys: { ...this.apiKeys },
             selectedModel: this.selectedModel,
+            selectedModelSente: this.selectedModelSente,
+            selectedModelGote: this.selectedModelGote,
             gemini3Thinking: this.gemini3Thinking,
             geminiFlashThinking: this.geminiFlashThinking,
             storageMode: this.storageMode
@@ -134,6 +171,12 @@ class Settings {
         if (settings.apiKeys) this.apiKeys = { ...settings.apiKeys };
         if (settings.selectedModel && this.llmModels.includes(settings.selectedModel)) {
             this.selectedModel = settings.selectedModel;
+        }
+        if (settings.selectedModelSente && this.llmModels.includes(settings.selectedModelSente)) {
+            this.selectedModelSente = settings.selectedModelSente;
+        }
+        if (settings.selectedModelGote && this.llmModels.includes(settings.selectedModelGote)) {
+            this.selectedModelGote = settings.selectedModelGote;
         }
         if (settings.gemini3Thinking === 'high' || settings.gemini3Thinking === 'low') {
             this.gemini3Thinking = settings.gemini3Thinking;
@@ -162,22 +205,39 @@ function createModelSelector(container, settings, onModelChange) {
 
     const selectorContainer = document.createElement('div');
     selectorContainer.id = 'llmModelSelector';
-    selectorContainer.className = 'model-selector';
+    selectorContainer.className = 'model-selector duo';
 
-    const label = document.createElement('label');
-    label.textContent = 'LLMモデル: ';
-    label.htmlFor = 'modelSelect';
-    selectorContainer.appendChild(label);
+    // 先手モデル
+    const labelS = document.createElement('label');
+    labelS.textContent = '先手モデル: ';
+    labelS.htmlFor = 'modelSelectSente';
+    selectorContainer.appendChild(labelS);
 
-    const select = document.createElement('select');
-    select.id = 'modelSelect';
-    select.innerHTML = generateModelOptions();
-    select.value = settings.getSelectedModel();
-    select.addEventListener('change', () => {
-        settings.setSelectedModel(select.value);
-        if (onModelChange) onModelChange(select.value);
+    const selectS = document.createElement('select');
+    selectS.id = 'modelSelectSente';
+    selectS.innerHTML = generateModelOptions();
+    selectS.value = settings.getSelectedModelForPlayer(PLAYER.SENTE);
+    selectS.addEventListener('change', () => {
+        settings.setSelectedModelForPlayer(PLAYER.SENTE, selectS.value);
+        if (onModelChange) onModelChange(selectS.value);
     });
-    selectorContainer.appendChild(select);
+    selectorContainer.appendChild(selectS);
+
+    // 後手モデル
+    const labelG = document.createElement('label');
+    labelG.textContent = '後手モデル: ';
+    labelG.htmlFor = 'modelSelectGote';
+    selectorContainer.appendChild(labelG);
+
+    const selectG = document.createElement('select');
+    selectG.id = 'modelSelectGote';
+    selectG.innerHTML = generateModelOptions();
+    selectG.value = settings.getSelectedModelForPlayer(PLAYER.GOTE);
+    selectG.addEventListener('change', () => {
+        settings.setSelectedModelForPlayer(PLAYER.GOTE, selectG.value);
+        if (onModelChange) onModelChange(selectG.value);
+    });
+    selectorContainer.appendChild(selectG);
 
     container.appendChild(selectorContainer);
 }
@@ -187,7 +247,9 @@ function addSettingsModalStyles() {
     const style = document.createElement('style');
     style.id = 'settingsModalStyles';
     style.textContent = `
-        .model-selector { margin: 10px 0; display: flex; align-items: center; gap: 10px; }
+        .model-selector { margin: 10px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .model-selector.duo label { min-width: 80px; }
+        .model-selector.duo select { min-width: 160px; }
         .model-selector select { padding: 5px; border-radius: 4px; border: 1px solid #ddd; }
         .promotion-dialog { position: absolute; background: white; border: 2px solid #333; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); z-index: 1000; text-align: center; }
         .promotion-dialog button { margin: 5px; padding: 5px 10px; }

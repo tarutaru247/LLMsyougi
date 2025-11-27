@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 将棋ゲームのロジックを管理するクラス
  */
 class Game {
@@ -42,6 +42,16 @@ class Game {
 
         // 勝敗情報
         this.gameResult = null; // null: 進行中, 'sente_win': 先手勝ち, 'gote_win': 後手勝ち
+    }
+    
+    /**
+     * AI同士モード開始用。必要な場合だけ即座にAIの手を呼び出す。
+     */
+    startAiMatch() {
+        // AI同士モードを手動で開始する（モードが正しく選択されていることが前提）
+        if (this.gameMode === 'llm-vs-llm' && !this.aiThinking && this.gameResult === null) {
+            this.makeBotMove();
+        }
     }
     
     /**
@@ -345,8 +355,10 @@ class Game {
         }
 
         // LLMモードで、現在の手番がGOTEの場合はLLMの手を指す
-        if (this.gameMode === 'llm' && this.currentPlayer === PLAYER.GOTE && !this.aiThinking) {
-            setTimeout(() => this.makeBotMove(), 500); // makeBotMove は LLM の手を指すメソッド
+        const isBothAi = this.gameMode === 'llm-vs-llm';
+        const isSingleAiTurn = this.gameMode === 'llm' && this.currentPlayer === PLAYER.GOTE;
+        if ((isBothAi || isSingleAiTurn) && !this.aiThinking) {
+            setTimeout(() => this.makeBotMove(), 300);
         }
     }
     
@@ -356,9 +368,7 @@ class Game {
     makeBotMove() {
         // ガード: 進行中でない / 手番でない / すでに思考中なら何もしない
         if (this.gameResult !== null) return;
-        if (this.gameMode !== 'llm') return;
-        // 現状AIは後手担当とする（必要なら設定で拡張）
-        if (this.currentPlayer !== PLAYER.GOTE) return;
+        if (this.gameMode === 'human') return;
         if (this.aiThinking) return;
 
         // 合法手が無い＝詰み/行き場なし
@@ -378,7 +388,7 @@ class Game {
         
         // AIの思考を初期化
         if (this.onAiThinkingUpdate) {
-            this.onAiThinkingUpdate('思考中...');
+            this.onAiThinkingUpdate('');
         }
         
         // BOTのインスタンスを作成
@@ -387,7 +397,15 @@ class Game {
         // 使用するモデルを選択 (Settingsから取得するように修正)
         // const modelKeys = Object.keys(LLM_MODELS);
         // const modelKey = modelKeys[Math.floor(Math.random() * modelKeys.length)]; // ランダム選択をやめる
-        const modelKey = this.settings.getSelectedModel(); // ユーザーが選択したモデルを取得
+        const modelKey = this.settings.getSelectedModelForPlayer(this.currentPlayer);
+
+        // APIキー確認
+        if (!this.settings.hasSelectedModelApiKeyForPlayer(this.currentPlayer)) {
+            alert(`${LLM_MODELS[modelKey].name} のAPIキーが未設定です。設定からキーを入力してください。`);
+            this.aiThinking = false;
+            this.updateGameState();
+            return;
+        }
 
         // BOTに手を選択させる
         bot.selectMoveWithLLM(this.currentPlayer, modelKey, (move, thinking, isError) => { // 引数に isError を追加
@@ -820,3 +838,22 @@ class Game {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

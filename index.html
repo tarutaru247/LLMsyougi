@@ -12,10 +12,13 @@
             <h1>生成AI将棋</h1>
             <div class="game-controls">
                 <button id="newGameBtn">新規対局</button>
-                <button id="undoBtn">一手戻る</button>
+                <button id="undoBtn">一手戻す</button>
+                <button id="startAiMatchBtn">対局開始</button>
+                <button id="stopAiMatchBtn">対局停止</button>
                 <select id="gameMode">
                     <option value="human">人間 vs 人間</option>
                     <option value="llm" selected>人間 vs 生成AI</option>
+                    <option value="llm-vs-llm">生成AI vs 生成AI</option>
                 </select>
                 <button id="openApiSettingsBtn">API設定</button>
             </div>
@@ -96,3 +99,7 @@
     <script src="js/main.js"></script>
 </body>
 </html>
+
+
+
+

@@ -17,6 +17,7 @@ class UI {
         this.capturedPiecesGoteElement = document.getElementById('capturedPiecesGote');
         this.newGameButton = document.getElementById('newGameBtn');
         this.undoButton = document.getElementById('undoBtn');
+        this.startAiMatchButton = document.getElementById('startAiMatchBtn');
         this.gameModeSelect = document.getElementById('gameMode');
         this.settingsButton = document.getElementById('openApiSettingsBtn');
         this.settingsModal = document.getElementById('settingsModal');
@@ -45,6 +46,9 @@ class UI {
     setupEventListeners() {
         this.newGameButton.addEventListener('click', () => this.game.initialize());
         this.undoButton.addEventListener('click', () => this.game.undoMove());
+        if (this.startAiMatchButton) {
+            this.startAiMatchButton.addEventListener('click', () => this.game.startAiMatch());
+        }
         this.gameModeSelect.addEventListener('change', () => {
             this.game.setGameMode(this.gameModeSelect.value);
         });
@@ -243,14 +247,21 @@ class UI {
 
     /**
      * AI思考内容を表示（履歴を保持）
-     */
-        updateAiThinking(content) {
+     */    updateAiThinking(content) {
         if (!this.aiThinkingElement) return;
 
         const parsed = this.tryParseMoveJson(content);
         if (parsed) {
-            this.aiThinkingHistory.push(parsed);
-            if (this.aiThinkingHistory.length > 30) this.aiThinkingHistory.shift();
+            const last = this.aiThinkingHistory[this.aiThinkingHistory.length - 1];
+            const isDuplicate =
+                last &&
+                String(last.move_id ?? '') === String(parsed.move_id ?? '') &&
+                String(last.notation ?? '') === String(parsed.notation ?? '') &&
+                String(last.reason ?? '') === String(parsed.reason ?? '');
+            if (!isDuplicate) {
+                this.aiThinkingHistory.push(parsed);
+                if (this.aiThinkingHistory.length > 30) this.aiThinkingHistory.shift();
+            }
             this.hideThinkingIndicator();
             this.renderThinkingHistory();
         } else {
@@ -265,7 +276,9 @@ class UI {
             }
 
             const text = this.sanitizeText(content);
-            this.showThinkingIndicator(text || '思考中…');
+            const shortText =
+                !text || text.length > 40 || text.includes('{') ? '思考中…' : text;
+            this.showThinkingIndicator(shortText);
             if (this.aiThinkingHistory.length > 0) {
                 this.renderThinkingHistory();
             } else {
@@ -396,4 +409,5 @@ class UI {
         this.aiThinkingIndicator = null;
     }
 }
+
 
