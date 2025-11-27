@@ -179,14 +179,6 @@ function createModelSelector(container, settings, onModelChange) {
     });
     selectorContainer.appendChild(select);
 
-    const settingsButton = document.createElement('button');
-    settingsButton.textContent = 'API設定';
-    settingsButton.addEventListener('click', () => {
-        const settingsModal = document.getElementById('settingsModal');
-        if (settingsModal) settingsModal.style.display = 'block';
-    });
-    selectorContainer.appendChild(settingsButton);
-
     container.appendChild(selectorContainer);
 }
 
