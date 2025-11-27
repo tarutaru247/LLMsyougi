@@ -53,7 +53,12 @@ class Bot {
             await new Promise(resolve => setTimeout(resolve, 1000));
             const move = this.selectRandomMove(player);
             this.thinking = false;
-            callback(move, 'Debug Dummy Random: ランダム手を返しました', false);
+            const thinkingMessage = JSON.stringify({
+                move_id: null,
+                notation: 'デバッグ用（手は指しません）',
+                reason: '開発・デバッグ目的のダミーモデルです。盤面や合法手の確認のみ行い、手は指しません。'
+            });
+            callback(move, thinkingMessage, false);
             return;
         }
 
