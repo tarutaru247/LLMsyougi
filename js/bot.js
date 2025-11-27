@@ -1,6 +1,6 @@
 /**
- * 将棋の指し手を担当するBOTクラス
- * 盤面情報をLLMへ渡し、返答から合法手を選択する。
+ * Shogi BOT: passes board state to LLM and parses its reply.
+ * 文字化け防止のため全体をUTF-8で記述。
  */
 class Bot {
     constructor(game) {
@@ -9,9 +9,7 @@ class Bot {
         this.currentModel = null;
     }
 
-    /**
-     * デバッグ用ランダム手
-     */
+    /** 開発用ランダム手 */
     selectRandomMove(player) {
         const legalMoves = this.game.getAllPossibleMoves(player);
         if (!legalMoves.length) return null;
@@ -30,25 +28,16 @@ class Bot {
         const gameHistory = this.game.gameHistory;
         const legalMoves = this.game.getAllPossibleMoves(player);
 
-        // 合法手が無い場合は詰み/手詰まりとみなし終了
+        // 合法手が無ければ終了
         if (!legalMoves.length) {
             this.thinking = false;
             callback(null, '合法手がありません（詰み/手詰まり）', true);
             return;
         }
 
-        const prompt = this.createPromptForLLM(
-            player,
-            boardState,
-            capturedPieces,
-            gameHistory,
-            legalMoves,
-            modelKey
-        );
-
         const model = LLM_MODELS[modelKey];
 
-        // ランダムダミーはAPI呼び出しを行わずランダム手＋1秒ディレイ
+        // ランダムダミーはAPIを呼ばず1秒ディレイ＋ランダム手
         if (model && model.isRandom) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             const move = this.selectRandomMove(player);
@@ -62,6 +51,15 @@ class Bot {
             return;
         }
 
+        const prompt = this.createPromptForLLM(
+            player,
+            boardState,
+            capturedPieces,
+            gameHistory,
+            legalMoves,
+            modelKey
+        );
+
         const apiKey = model.name === 'Debug Dummy' ? 'DUMMY' : this.game.settings.getApiKey(modelKey);
         if (!apiKey) {
             this.thinking = false;
@@ -72,7 +70,7 @@ class Bot {
         try {
             const responseText = await this.sendRequestToLLM(model, apiKey, prompt);
             let move = this.extractMoveFromResponse(responseText, player, legalMoves);
-            // ダミーモデルは手を指さない
+            // デバッグダミーは指さない
             if (model.name === 'Debug Dummy') {
                 move = { type: 'noop' };
             }
@@ -91,46 +89,34 @@ class Bot {
     }
 
     /**
-     * プロンプト生成
+     * プロンプト生成：盤面を正確かつ簡潔に伝える
      */
     createPromptForLLM(player, boardState, capturedPieces, gameHistory, legalMoves, modelKey) {
-        const turnText = player === PLAYER.SENTE ? '先手（下手）' : '後手（上手）';
+        const turnText = player === PLAYER.SENTE ? '先手' : '後手';
         const inCheck = this.game.isPlayerInCheck(player);
+        // 盤面をSFEN風の簡潔JSONで渡す（square, owner, piece, promoted）
         const boardJson = this.buildBoardStateJson(boardState);
+        // 合法手は全件渡す（制限しない）
         const legalMovesPayload = this.buildLegalMovesPayload(legalMoves);
-        const historyText = this.formatHistory(gameHistory);
+        const historyText = this.formatHistory(gameHistory) || 'まだ指し手なし';
         const capturedText = `先手: ${this.formatCapturedPiecesForPrompt(capturedPieces[PLAYER.SENTE])}\n後手: ${this.formatCapturedPiecesForPrompt(capturedPieces[PLAYER.GOTE])}`;
         const thinkingDirective = this.getThinkingDirective(modelKey);
 
         const instruction = [
-            'あなたは将棋の指し手選択エージェントです。',
-            `現在の手番: ${turnText}。以下の合法手リストから必ず1手だけ選びます。`,
-            `現在王手: ${inCheck ? 'はい' : 'いいえ'}。もし「はい」なら必ず王手を回避する手を選ぶこと。`,
+            'あなたは将棋の指し手選択エージェントです。以下の合法手リストから最善の1手だけを選び、必ず1行JSONで返してください。',
+            `現在の手番: ${turnText}。現在王手: ${inCheck ? 'はい' : 'いいえ'}。王手を受けている場合は回避を最優先。`,
             thinkingDirective,
-            '出力フォーマットは **1 行の JSON のみ**。他の文字・改行・コードブロックは禁止。',
-            '必須キー: move_id（合法手リストの id のみ）, notation（人間可読の指し手）, reason（その手を選んだ理由を1〜2文）',
-            '例: {"move_id": 3, "notation": "７六歩", "reason": "角道を開けて先手攻撃を準備する"}',
-            'reason は内容を厚くし、2〜4文で具体的な狙いと変化例を簡潔に説明すること（現在より約2倍の分量）。',
-            '',
-            '【盤面(JSON形式)】',
+            '出力は1行JSONのみ（コードブロック禁止）。キー: move_id, notation, reason。',
+            '例: {"move_id": 3, "notation": "７六歩", "reason": "角道を開けて主導権を取る"}',
+            '【盤面(JSON)】',
             JSON.stringify(boardJson, null, 2),
-            '',
-            '【盤面(図)】',
-            this.formatBoardStateForPrompt(boardState),
-            '',
             '【持ち駒】',
             capturedText,
-            '',
             '【棋譜】',
-            historyText || '（まだ指し手なし）',
-            '',
+            historyText,
             '【合法手リスト】',
             JSON.stringify(legalMovesPayload, null, 2),
-            '',
-            'ルール（厳守）:',
-            '- move_id は上の合法手リストの id のみを使う（範囲外は無効）',
-            '- 出力は1行JSONのみ。コードブロックや追加の文章は禁止',
-            '- notation は人間が読む指し手表記、reason は理由を簡潔に1〜2文'
+            'ルール: move_idは上記リストのidのみ。出力は1行JSON。'
         ];
 
         return instruction.join('\n');
@@ -165,8 +151,8 @@ class Bot {
     }
 
     positionToSquare(pos) {
-        const cols = ['９', '８', '７', '６', '５', '４', '３', '２', '１'];
-        const rows = ['一', '二', '三', '四', '五', '六', '七', '八', '九'];
+        const cols = ['９','８','７','６','５','４','３','２','１'];
+        const rows = ['一','二','三','四','五','六','七','八','九'];
         return `${cols[pos.col]}${rows[pos.row]}`;
     }
 
@@ -178,29 +164,7 @@ class Bot {
         }
         const from = this.positionToSquare(move.from);
         const promote = move.promote ? '成' : '';
-        return `${from}${pieceName}→${to}${promote}`;
-    }
-
-    formatBoardStateForPrompt(boardState) {
-        let result = '   ９８７６５４３２１\n';
-        result += ' +---------------------------+\n';
-        for (let row = 0; row < BOARD_SIZE.ROWS; row++) {
-            result += ['一', '二', '三', '四', '五', '六', '七', '八', '九'][row];
-            result += '|';
-            for (let col = 0; col < BOARD_SIZE.COLS; col++) {
-                const piece = boardState[row][col];
-                if (piece.type === PIECE_TYPES.EMPTY) {
-                    result += ' ・';
-                } else {
-                    const pieceName = PIECE_NAMES[piece.type];
-                    const playerMark = piece.player === PLAYER.SENTE ? ' ' : 'v';
-                    result += playerMark + pieceName;
-                }
-            }
-            result += '|\n';
-        }
-        result += ' +---------------------------+';
-        return result;
+        return `${from}${pieceName}${to}${promote}`;
     }
 
     formatCapturedPiecesForPrompt(capturedPieces) {
@@ -225,6 +189,9 @@ class Bot {
             .join('\n');
     }
 
+    /**
+     * LLM API送信
+     */
     async sendRequestToLLM(model, apiKey, prompt) {
         switch (model.name) {
             case 'GPT-5.1 Low':
@@ -247,16 +214,14 @@ class Bot {
         const body = {
             model: model.model,
             messages: [
-                { role: 'system', content: 'あなたは将棋の指し手を返すAIです。合法手リストに必ず従い、JSON一行のみで回答してください。' },
+                { role: 'system', content: 'あなたは将棋の指し手を返すAIです。合法手リストに従い、JSON1行のみで回答してください。' },
                 { role: 'user', content: prompt }
             ],
             stream: true
         };
-        // GPT-5.1: reasoning_effort を使用。temperature/top_p は併用しない。
         if (model.model === 'gpt-5.1' && model.reasoningEffort) {
-            body.reasoning_effort = model.reasoningEffort; // 'low'|'medium'|'high'
+            body.reasoning_effort = model.reasoningEffort;
         } else {
-            // 旧モデルのみ温度を設定
             body.temperature = 0.2;
         }
 
@@ -315,13 +280,11 @@ class Bot {
     async sendRequestToGemini(model, apiKey, prompt) {
         const generationConfig = {};
         if (model.thinkingMode) {
-            // Flash Thinking: on/off → thinkingBudget
             generationConfig.thinkingConfig = {
                 thinkingBudget: model.thinkingMode === 'on' ? -1 : 0
             };
         }
         if (model.thinkingLevel) {
-            // 3 Pro high/low
             generationConfig.thinkingConfig = {
                 thinkingLevel: model.thinkingLevel
             };
@@ -355,9 +318,7 @@ class Bot {
         return text;
     }
 
-    /**
-     * ダミーモデル: API呼び出しなしで固定レスポンスを返す
-     */
+    /** ダミーモデル: 固定レスポンス */
     async sendRequestToDummy(prompt) {
         return JSON.stringify({
             move_id: null,
@@ -419,28 +380,21 @@ class Bot {
         const hankakuNums = '0123456789';
         let s = str
             .replace(/[０-９]/g, c => hankakuNums[zenkakuNums.indexOf(c)])
-            .replace(/→|↦|⇒|－|ー|->/g, '->')
+            .replace(/→|↦|⇒|→|ー|->/g, '->')
             .replace(/[　\s]/g, '');
         s = s.replace(/[▲△]/g, '');
         return s;
     }
 
-    /**
-     * モデル別の思考指示を返す
-     */
     getThinkingDirective(modelKey) {
         if (!this.game || !this.game.settings) return '';
         if (modelKey === 'GEMINI3_PRO_HIGH' || modelKey === 'GEMINI3_PRO_LOW') {
             const level = modelKey.endsWith('HIGH') ? 'high' : 'low';
-            return `思考レベル: ${level}（${level === 'high' ? '詳細に' : '簡潔に'}理由を記述。出力は1行JSONのみ）`;
+            return `思考レベル: ${level}（${level === 'high' ? '詳細に' : '簡潔に'}理由を書く）。出力は1行JSONのみ。`;
         }
         if (modelKey === 'GEMINI_FLASH_THINK' || modelKey === 'GEMINI_FLASH') {
             const mode = modelKey === 'GEMINI_FLASH_THINK' ? 'on' : 'off';
-            if (mode === 'on') {
-                return '思考モード: on（reasonに短い思考要約を含める）。出力は1行JSONのみ。';
-            } else {
-                return '思考モード: off（reasonは簡潔に）。出力は1行JSONのみ。';
-            }
+            return `思考モード: ${mode}。reasonは簡潔に。出力は1行JSONのみ。`;
         }
         return '';
     }
@@ -471,3 +425,6 @@ class Bot {
         return false;
     }
 }
+
+// グローバルに公開（main.js から参照）
+window.Bot = Bot;
