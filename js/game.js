@@ -208,7 +208,14 @@ class Game {
         if (index >= this.board.capturedPieces[player].length) {
             return;
         }
-        
+
+        // すでに同じ持ち駒を選択中ならキャンセル
+        if (this.selectedCapturedPiece && this.selectedCapturedPiece.player === player && this.selectedCapturedPiece.index === index) {
+            this.selectedCapturedPiece = null;
+            this.board.highlightMoves([]);
+            return;
+        }
+
         // 選択状態をリセット
         this.board.deselectPiece();
         
@@ -235,10 +242,10 @@ class Game {
             return false;
         }
         
-        const { player, piece } = this.selectedCapturedPiece;
+        const { player, piece, index } = this.selectedCapturedPiece;
         
         // 持ち駒を打つ
-        const success = this.board.dropPiece(piece.type, player, pos, force);
+        const success = this.board.dropPiece(piece.type, player, pos, force, index);
         
         if (success) {
             // 棋譜に記録

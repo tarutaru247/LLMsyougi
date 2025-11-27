@@ -160,20 +160,26 @@ class UI {
         const element = player === PLAYER.SENTE ? this.capturedPiecesSenteElement : this.capturedPiecesGoteElement;
         element.innerHTML = '';
         const capturedPieces = this.game.board.capturedPieces[player];
-        const pieceGroups = {};
-        capturedPieces.forEach(piece => {
-            if (!pieceGroups[piece.type]) pieceGroups[piece.type] = [];
-            pieceGroups[piece.type].push(piece);
-        });
-        Object.entries(pieceGroups).forEach(([type, pieces]) => {
-            const pieceType = parseInt(type);
-            const pieceName = PIECE_NAMES[pieceType];
+        capturedPieces.forEach((piece, idx) => {
+            const pieceName = PIECE_NAMES[piece.type];
             const pieceElement = document.createElement('div');
             pieceElement.className = 'captured-piece';
-            pieceElement.textContent = pieces.length > 1 ? `${pieceName}×${pieces.length}` : pieceName;
+            pieceElement.dataset.index = idx;
+            pieceElement.style.cursor = 'pointer';
+            pieceElement.textContent = pieceName;
             pieceElement.addEventListener('click', () => {
-                this.game.handleCapturedPieceClick(player, capturedPieces.indexOf(pieces[0]));
+                const index = parseInt(pieceElement.dataset.index, 10);
+                this.game.handleCapturedPieceClick(player, index);
+
+                // 選択状態の視覚反映：現在選択されているかをゲーム状態から判定
+                this.updateCapturedPieces();
             });
+            // 現在選択中なら強調
+            if (this.game.selectedCapturedPiece &&
+                this.game.selectedCapturedPiece.player === player &&
+                this.game.selectedCapturedPiece.index === idx) {
+                pieceElement.classList.add('selected');
+            }
             element.appendChild(pieceElement);
         });
     }

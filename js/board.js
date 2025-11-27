@@ -399,7 +399,7 @@ class Board {
      * @param {boolean} force - 強制的に打つかどうか（反則手でも実行）
      * @returns {boolean} 打てた場合はtrue
      */
-    dropPiece(pieceType, player, pos, force = false) {
+    dropPiece(pieceType, player, pos, force = false, capturedIndex = null) {
         // 打てるかどうかをチェック（forceがtrueの場合はスキップ）
         if (!force && !MoveValidator.canDropPiece(this.board, pos, pieceType, player)) {
             return false;
@@ -416,7 +416,10 @@ class Board {
             return false;
         }
         
-        const pieceIndex = this.capturedPieces[player].findIndex(p => p.type === pieceType);
+        let pieceIndex = capturedIndex;
+        if (pieceIndex === null || pieceIndex === undefined || pieceIndex < 0 || pieceIndex >= this.capturedPieces[player].length || this.capturedPieces[player][pieceIndex].type !== pieceType) {
+            pieceIndex = this.capturedPieces[player].findIndex(p => p.type === pieceType);
+        }
         if (pieceIndex === -1) {
             return false;
         }
