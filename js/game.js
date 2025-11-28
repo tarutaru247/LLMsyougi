@@ -14,11 +14,12 @@ class Game {
         this.gameMode = 'llm'; // 初期モードは人間対LLM
         this.gameHistory = []; // 棋譜
         this.currentMoveIndex = -1; // 現在の手番のインデックス
-        this.isPromotionDialogOpen = false; // 成り駒ダイアログの表示状態
-        this.pendingMove = null; // 成り駒ダイアログ表示中の移動情報
+        this.isPromotionDialogOpen = false; // 成りダイアログの表示状態
+        this.pendingMove = null; // 成りダイアログの移動先
         this.selectedCapturedPiece = null; // 選択された持ち駒
-        this.isBrowsingHistory = false; // 棋譜閲覧中フラグ
+        this.isBrowsingHistory = false; // 棋譜ブラウズフラグ
         this.stopRequested = false; // 対局停止フラグ
+        this.aiAutoPlay = false; // AI同士の自動進行フラグ
         
         // ボードのイベントハンドラを設定
         this.board.onCellClick = this.handleCellClick.bind(this);
@@ -46,18 +47,22 @@ class Game {
     }
     
     /**
-     * AI同士モード開始用。必要な場合だけ即座にAIの手を呼び出す。
+     * AI対局開始（手動トリガ）
      */
     startAiMatch() {
-        // AI同士モードを手動で開始する（モードが正しく選択されていることが前提）
         if (this.gameMode === 'llm-vs-llm' && !this.aiThinking && this.gameResult === null) {
             this.stopRequested = false;
+            this.aiAutoPlay = true;
             this.makeBotMove();
         }
     }
 
+    /**
+     * AI対局停止
+     */
     stopAiMatch() {
         this.stopRequested = true;
+        this.aiAutoPlay = false;
         this.aiThinking = false;
         if (this.onAiThinkingUpdate) this.onAiThinkingUpdate('', this.currentPlayer, null);
         if (this.ui && this.ui.hideAiThinking) {
@@ -75,7 +80,9 @@ class Game {
         this.gameHistory = [];
         this.currentMoveIndex = -1;
         this.gameResult = null; // ゲーム結果をリセット
-        this.isBrowsingHistory = false; // フラグもリセット
+        this.isBrowsingHistory = false; // 履歴ブラウズをリセット
+        this.stopRequested = false;
+        this.aiAutoPlay = false;
         // AI思考履歴をクリア
         if (this.onAiThinkingUpdate) {
             this.onAiThinkingUpdate('', this.currentPlayer, null);
@@ -369,7 +376,7 @@ class Game {
         // LLMモードで、現在の手番がGOTEの場合はLLMの手を指す
         const isBothAi = this.gameMode === 'llm-vs-llm';
         const isSingleAiTurn = this.gameMode === 'llm' && this.currentPlayer === PLAYER.GOTE;
-        if ((isBothAi || isSingleAiTurn) && !this.aiThinking && !this.stopRequested) {
+        if ((isSingleAiTurn || (isBothAi && this.aiAutoPlay)) && !this.aiThinking && !this.stopRequested) {
             setTimeout(() => this.makeBotMove(), 300);
         }
     }
