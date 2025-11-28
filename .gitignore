@@ -2,4 +2,8 @@ node_modules
 
 #以下二つのコメントアウトは消去してください。.env.exampleは消さなくて良いです。
 #.env.local
-#.env
+.env
+
+将棋のルール.md
+docs/
+agent_log.md
