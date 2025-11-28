@@ -331,14 +331,14 @@ class UI {
             return { row, col: 9 - col };
         };
 
-        const moveLineRe = /^\s*\d+\s+([^\s]+)\s*\(/;
+        const moveLineRe = /^\s*\d+\s+(.+?)\s*\(/; // 指手部分を括弧手前まで（空白込み）取得
 
         for (const line of lines) {
             const m = moveLineRe.exec(line);
             if (!m) continue;
             let token = m[1]; // 例: ２六歩(27) / 同　馬(52) / ▲２六歩
             token = token.replace(/^[▲△]/, ''); // 先後記号を除去
-            token = token.replace(/\u3000/g, ''); // 全角空白除去
+            token = token.replace(/[\u3000\s]+/g, ''); // 全角/半角の空白を除去
 
             // 行き先
             let dest = parseSquare(token.slice(0,2));
@@ -350,7 +350,7 @@ class UI {
             let rest = token.slice(token.startsWith('同') ? 1 : 2);
             // 元位置カッコを除去してから判定
             rest = rest.replace(/\(.*?\)/g, '');
-            rest = rest.replace(/\s+/g, ''); // 余分な空白を除去
+            rest = rest.replace(/\s+/g, ''); // 余分な空白を除去（念のため）
             const isDrop = rest.includes('打');
             const isPromote = rest.includes('成');
             const pieceChar = rest.replace(/(打|成)/g,'');
