@@ -336,7 +336,7 @@ class UI {
         for (const line of lines) {
             const m = moveLineRe.exec(line);
             if (!m) continue;
-            let token = m[1]; // 例: ２六歩(27) or ２六歩成(27) or ２六歩打 / 同　馬(52)
+            let token = m[1]; // 例: ２六歩(27) / 同　馬(52) / ▲２六歩
             token = token.replace(/^[▲△]/, ''); // 先後記号を除去
             token = token.replace(/\u3000/g, ''); // 全角空白除去
 
@@ -347,7 +347,7 @@ class UI {
             }
             if (!dest) return null;
 
-            let rest = token.slice(2);
+            let rest = token.slice(token.startsWith('同') ? 1 : 2);
             // 元位置カッコを除去してから判定
             rest = rest.replace(/\(.*?\)/g, '');
             const isDrop = rest.includes('打');
