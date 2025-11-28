@@ -120,6 +120,53 @@ class Game {
         if (this.onAiThinkingUpdate) this.onAiThinkingUpdate('', this.currentPlayer, null);
         this.updateGameState();
     }
+
+    /**
+     * KIF取り込み用：初期局面から指定手順を再生
+     * @param {Array<Object>} moves - {type:'move'|'drop', from?, to, promote?, pieceType, player}
+     * @returns {boolean} 成功/失敗
+     */
+    importKifMoves(moves) {
+        try {
+            this.initialize(); // 盤面と履歴をリセット
+            this.stopRequested = false;
+            this.aiErrorPending = false;
+            this.aiAutoPlay = false;
+            this.gameResult = null;
+
+            for (let i = 0; i < moves.length; i++) {
+                const mv = moves[i];
+                this.currentPlayer = (i % 2 === 0) ? PLAYER.SENTE : PLAYER.GOTE;
+
+                if (mv.type === 'move') {
+                    this.movePiece(mv.from, mv.to, !!mv.promote);
+                } else if (mv.type === 'drop') {
+                    // 持ち駒に該当駒があるか確認してセット
+                    const cap = this.board.capturedPieces[this.currentPlayer] || [];
+                    const idx = cap.findIndex(p => p.type === mv.pieceType);
+                    if (idx === -1) throw new Error('持ち駒が不足しています');
+                    this.selectedCapturedPiece = {
+                        player: this.currentPlayer,
+                        index: idx,
+                        piece: cap[idx]
+                    };
+                    const ok = this.dropCapturedPiece(mv.to, true);
+                    if (!ok) throw new Error('打つ位置が不正です');
+                }
+            }
+
+            // 次の手番をセット
+            this.currentPlayer = (moves.length % 2 === 0) ? PLAYER.SENTE : PLAYER.GOTE;
+            this.updateGameState();
+            this.board.draw();
+            if (this.onCapturedPiecesUpdate) this.onCapturedPiecesUpdate(this.board.capturedPieces);
+            if (this.onGameRecordUpdate) this.onGameRecordUpdate(this.gameHistory);
+            return true;
+        } catch (e) {
+            console.error('KIF import failed:', e);
+            return false;
+        }
+    }
     
     /**
      * セルクリック時の処理

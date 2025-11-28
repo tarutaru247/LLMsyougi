@@ -99,7 +99,7 @@ select { background-color: white; color: #333; }
 
 /* Dark Mode Styles */
 body.dark-mode {
-    background-color: #1a1a1a;
+    background-color: #222222;
     color: #f0f0f0;
 }
 

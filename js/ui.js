@@ -14,6 +14,8 @@ class UI {
         this.gameStatusElement = document.getElementById('gameStatus');
         this.gameRecordElement = document.getElementById('gameRecord');
         this.exportKifButton = document.getElementById('exportKifBtn');
+        this.importKifButton = document.getElementById('importKifBtn');
+        this.importKifInput = document.getElementById('importKifInput');
         this.capturedPiecesSenteElement = document.getElementById('capturedPiecesSente');
         this.capturedPiecesGoteElement = document.getElementById('capturedPiecesGote');
         this.newGameButton = document.getElementById('newGameBtn');
@@ -83,6 +85,10 @@ class UI {
 
         if (this.exportKifButton) {
             this.exportKifButton.addEventListener('click', () => this.exportKif());
+        }
+        if (this.importKifButton && this.importKifInput) {
+            this.importKifButton.addEventListener('click', () => this.importKifInput.click());
+            this.importKifInput.addEventListener('change', (e) => this.handleKifFile(e));
         }
         
         if (this.darkModeButton) {
@@ -261,6 +267,99 @@ class UI {
         a.href = url;
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    /** KIFファイル読み込み */
+    handleKifFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const text = reader.result;
+            const moves = this.parseKif(text);
+            if (!moves) {
+                alert('KIFの読み込みに失敗しました。');
+                return;
+            }
+            const ok = this.game.importKifMoves(moves);
+            if (!ok) {
+                alert('局面の再現に失敗しました。棋譜内容を確認してください。');
+                return;
+            }
+            alert('KIFを読み込みました。');
+        };
+        reader.readAsText(file, 'utf-8');
+        // 入力をリセットして同じファイルでも再選択できるように
+        event.target.value = '';
+    }
+
+    /** KIFテキストをパースして内部ムーブ配列に変換 */
+    parseKif(text) {
+        if (!text) return null;
+        const lines = text.split(/\r?\n/);
+        const moves = [];
+
+        const rowMap = { '一':0,'二':1,'三':2,'四':3,'五':4,'六':5,'七':6,'八':7,'九':8 };
+        const fwToHalf = (s) => s.replace(/[０-９]/g, d => String('０１２３４５６７８９'.indexOf(d)));
+
+        // PIECE_NAMES 逆引き
+        const nameToType = {};
+        Object.entries(PIECE_NAMES).forEach(([k,v]) => { nameToType[v] = Number(k); });
+        nameToType['玉'] = PIECE_TYPES.GYOKU;
+        nameToType['王'] = PIECE_TYPES.GYOKU;
+        nameToType['と'] = PIECE_TYPES.TO;
+        nameToType['龍'] = PIECE_TYPES.RYU;
+        nameToType['竜'] = PIECE_TYPES.RYU;
+        nameToType['馬'] = PIECE_TYPES.UMA;
+
+        const parseSquare = (sq) => {
+            if (!sq || sq.length < 2) return null;
+            const col = parseInt(fwToHalf(sq[0]), 10);
+            const rowKanji = sq[1];
+            const row = rowMap[rowKanji];
+            if (isNaN(col) || row === undefined) return null;
+            return { row, col: 9 - col };
+        };
+
+        const moveLineRe = /^\s*\d+\s+([^\s]+)\s*\(/;
+
+        for (const line of lines) {
+            const m = moveLineRe.exec(line);
+            if (!m) continue;
+            const token = m[1]; // 例: ２六歩 or ２六歩成 or ２六歩打
+
+            // 行き先
+            const dest = parseSquare(token.slice(0,2));
+            if (!dest) return null;
+
+            const rest = token.slice(2);
+            const isDrop = rest.includes('打');
+            const isPromote = rest.includes('成');
+            const pieceChar = rest.replace(/(打|成)/g,'');
+            const pieceType = nameToType[pieceChar];
+            if (!pieceType) return null;
+
+            let fromPos = null;
+            // 元位置 (..) から取得
+            const fromMatch = line.match(/\((\d)(\d)\)/);
+            if (!isDrop && fromMatch) {
+                const fromCol = parseInt(fromMatch[1],10);
+                const fromRow = parseInt(fromMatch[2],10);
+                fromPos = { row: fromRow-1, col: 9 - fromCol };
+            }
+
+            if (isDrop && !pieceType) return null;
+            moves.push({
+                type: isDrop ? 'drop' : 'move',
+                from: fromPos,
+                to: dest,
+                promote: isPromote,
+                pieceType,
+                player: moves.length % 2 === 0 ? PLAYER.SENTE : PLAYER.GOTE
+            });
+        }
+
+        return moves.length > 0 ? moves : null;
     }
 
     showPromotionDialog(fromPos, toPos) {
