@@ -26,6 +26,9 @@ class UI {
         this.settingsButton = document.getElementById('openApiSettingsBtn');
         this.settingsModal = document.getElementById('settingsModal');
         this.closeModalButton = document.querySelector('.close');
+        this.howToButton = document.getElementById('howToBtn');
+        this.howToModal = document.getElementById('howToModal');
+        this.howToClose = document.getElementById('howToClose');
         this.saveApiSettingsLocalButton = document.getElementById('saveApiSettingsLocal');
         this.saveApiSettingsSessionButton = document.getElementById('saveApiSettingsSession');
         this.aiThinkingSenteElement = document.getElementById('aiThinkingSente');
@@ -89,6 +92,12 @@ class UI {
         if (this.importKifButton && this.importKifInput) {
             this.importKifButton.addEventListener('click', () => this.importKifInput.click());
             this.importKifInput.addEventListener('change', (e) => this.handleKifFile(e));
+        }
+        if (this.howToButton && this.howToModal) {
+            this.howToButton.addEventListener('click', () => this.openHowToModal());
+        }
+        if (this.howToClose && this.howToModal) {
+            this.howToClose.addEventListener('click', () => this.closeHowToModal());
         }
         
         if (this.darkModeButton) {
@@ -653,6 +662,18 @@ class UI {
             indicator.parentNode.removeChild(indicator);
         }
         this.aiThinkingIndicator[key] = null;
+    }
+
+    openHowToModal() {
+        if (this.howToModal) {
+            this.howToModal.style.display = 'block';
+        }
+    }
+
+    closeHowToModal() {
+        if (this.howToModal) {
+            this.howToModal.style.display = 'none';
+        }
     }
 
     /**
