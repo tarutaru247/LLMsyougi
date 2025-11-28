@@ -42,12 +42,12 @@ select { background-color: white; color: #333; }
 
 .game-container { display: flex; gap: 12px; margin-top: 12px; align-items: flex-start; }
 .board-column { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; gap: 8px; }
-.board-container { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
+.board-container { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; padding: 0 8px; }
 .record-column { flex: 0 0 260px; }
 .info-column { flex: 1 1 0; display: flex; flex-direction: column; gap: 12px; align-self: stretch; }
 
 /* Shogi Board */
-#shogiBoard { border: 2px solid #333; background-color: #f0cea0; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); display: block; }
+#shogiBoard { border: 2px solid #333; background-color: #f0cea0; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); display: block; margin: 0 4px; }
 
 /* Captured Pieces */
 .captured-pieces { width: 450px; padding: 10px; margin: 0; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
