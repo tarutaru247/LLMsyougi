@@ -163,7 +163,7 @@ class UI {
             const el = document.createElement('div');
             el.className = 'move-record';
             el.dataset.index = index;
-            const moveNumber = Math.floor(index / 2) + 1;
+            const moveNumber = index + 1;
             const playerMark = move.player === PLAYER.SENTE ? '▲' : '△';
             let moveText = '';
             const toRowMap = ['\u4e00','\u4e8c','\u4e09','\u56db','\u4e94','\u516d','\u4e03','\u516b','\u4e5d'];
@@ -350,6 +350,7 @@ class UI {
             let rest = token.slice(token.startsWith('同') ? 1 : 2);
             // 元位置カッコを除去してから判定
             rest = rest.replace(/\(.*?\)/g, '');
+            rest = rest.replace(/\s+/g, ''); // 余分な空白を除去
             const isDrop = rest.includes('打');
             const isPromote = rest.includes('成');
             const pieceChar = rest.replace(/(打|成)/g,'');
