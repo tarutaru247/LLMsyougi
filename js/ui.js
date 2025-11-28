@@ -29,6 +29,8 @@ class UI {
         this.aiThinkingGoteElement = document.getElementById('aiThinkingGote');
         this.aiThinkingTitleSente = document.getElementById('aiThinkingTitleSente');
         this.aiThinkingTitleGote = document.getElementById('aiThinkingTitleGote');
+        this.aiThinkingBlockSente = document.getElementById('aiThinkingBlockSente');
+        this.aiThinkingBlockGote = document.getElementById('aiThinkingBlockGote');
         this.aiErrorRetryButton = null;
         this.aiTitle = document.querySelector('.ai-thinking-title');
 
@@ -42,6 +44,8 @@ class UI {
         this.setupEventListeners();
         this.setupGameEventHandlers();
         this.updateCapturedPieces();
+        // 初期表示をモードに応じて調整
+        this.updateThinkingVisibility(this.gameModeSelect.value);
     }
 
     /** イベントリスナー設定 */
@@ -56,6 +60,7 @@ class UI {
         }
         this.gameModeSelect.addEventListener('change', () => {
             this.game.setGameMode(this.gameModeSelect.value);
+            this.updateThinkingVisibility(this.gameModeSelect.value);
         });
 
         if (this.settingsButton) {
@@ -266,6 +271,9 @@ class UI {
         }
         if (!targetEl) return;
 
+        if (!this.aiThinkingHistory[key]) {
+            this.aiThinkingHistory[key] = [];
+        }
         const parsed = this.tryParseMoveJson(content);
         if (parsed) {
             const hist = this.aiThinkingHistory[key];
@@ -284,7 +292,7 @@ class UI {
         } else {
             if (!content) {
                 this.hideThinkingIndicator(isSente);
-                const hist = this.aiThinkingHistory[key];
+                const hist = this.aiThinkingHistory[key] || [];
                 if (hist.length > 0) {
                     this.renderThinkingHistory();
                 } else {
@@ -297,7 +305,7 @@ class UI {
             const shortText =
                 !text || text.length > 40 || text.includes('{') ? '思考中' : text;
             this.showThinkingIndicator(shortText, isSente);
-            const hist = this.aiThinkingHistory[key];
+            const hist = this.aiThinkingHistory[key] || [];
             if (hist.length > 0) {
                 this.renderThinkingHistory();
             } else {
@@ -440,4 +448,5 @@ class UI {
         this.aiThinkingIndicator[key] = null;
     }
 }
+
 
