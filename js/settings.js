@@ -295,7 +295,7 @@ function createModelSelector(container, settings, onModelChange) {
     radioSelect.checked = settings.getBotThinkingMode() === 'select';
     radioSelect.addEventListener('change', () => settings.setBotThinkingMode('select'));
     labelSelect.appendChild(radioSelect);
-    labelSelect.appendChild(document.createTextNode(' 選択式 (正確)'));
+    labelSelect.appendChild(document.createTextNode(' 選択式 (推奨)'));
     radioGroup.appendChild(labelSelect);
 
     // 生成式
@@ -308,7 +308,7 @@ function createModelSelector(container, settings, onModelChange) {
     radioGen.checked = settings.getBotThinkingMode() === 'generate';
     radioGen.addEventListener('change', () => settings.setBotThinkingMode('generate'));
     labelGen.appendChild(radioGen);
-    labelGen.appendChild(document.createTextNode(' 生成式 (自由)'));
+    labelGen.appendChild(document.createTextNode(' 生成式'));
     radioGroup.appendChild(labelGen);
 
     modeContainer.appendChild(radioGroup);

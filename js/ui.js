@@ -84,7 +84,7 @@ class UI {
         this.game.onPromotionDialogOpen = (fromPos, toPos) => this.showPromotionDialog(fromPos, toPos);
         this.game.onCapturedPiecesUpdate = () => this.updateCapturedPieces();
         this.game.onAiThinkingUpdate = (content, player, modelName) => this.updateAiThinking(content, player, modelName);
-        this.game.onAiError = (errorMessage) => this.handleAiError(errorMessage);
+        this.game.onAiError = (errorMessage, player, modelName) => this.handleAiError(errorMessage, player, modelName);
     }
 
     /** ゲーム状態表示 */
@@ -313,27 +313,40 @@ class UI {
             }
         }
     }
-    handleAiError(errorMessage) {
+    handleAiError(errorMessage, player, modelName) {
+        const isSente = player === PLAYER.SENTE;
+        const target = isSente ? this.aiThinkingSenteElement : this.aiThinkingGoteElement;
+        const title = isSente ? this.aiThinkingTitleSente : this.aiThinkingTitleGote;
+        if (title && modelName) {
+            title.textContent = `${isSente ? '先手' : '後手'}（${modelName}）の思考`;
+        }
+        this.hideThinkingIndicator(isSente);
+        if (!target) return;
+        target.innerHTML = '';
         const safeText = this.sanitizeText(errorMessage || 'AIエラーが発生しました');
-        const showError = (element) => {
-            if (!element) return;
-            element.innerHTML = '';
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'ai-error-message';
-            errorDiv.textContent = safeText;
-            errorDiv.style.color = '#d32f2f';
-            errorDiv.style.padding = '10px';
-            errorDiv.style.backgroundColor = '#ffebee';
-            errorDiv.style.border = '1px solid #ef9a9a';
-            errorDiv.style.borderRadius = '4px';
-            errorDiv.style.marginBottom = '10px';
-            errorDiv.style.whiteSpace = 'pre-wrap';
-            element.appendChild(errorDiv);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'ai-error-message';
+        errorDiv.textContent = safeText;
+        errorDiv.style.color = '#d32f2f';
+        errorDiv.style.padding = '10px';
+        errorDiv.style.backgroundColor = '#ffebee';
+        errorDiv.style.border = '1px solid #ef9a9a';
+        errorDiv.style.borderRadius = '4px';
+        errorDiv.style.marginBottom = '10px';
+        errorDiv.style.whiteSpace = 'pre-wrap';
+        target.appendChild(errorDiv);
+
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = '再生成する';
+        retryBtn.className = 'retry-btn';
+        retryBtn.style.padding = '6px 12px';
+        retryBtn.style.marginTop = '6px';
+        retryBtn.onclick = () => {
+            retryBtn.disabled = true;
+            retryBtn.textContent = '再生成中...';
+            this.game.retryBotMove();
         };
-        showError(this.aiThinkingSenteElement);
-        showError(this.aiThinkingGoteElement);
-        this.hideThinkingIndicator(true);
-        this.hideThinkingIndicator(false);
+        target.appendChild(retryBtn);
     }
     /** 値を安全な文字列に変換 */
     sanitizeText(value) {
