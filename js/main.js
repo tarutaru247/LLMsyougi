@@ -15,14 +15,16 @@ document.addEventListener('DOMContentLoaded', () => {
     game.ui = ui;
     const bot = new Bot(game);
 
-    // モデルセレクタ
-    const gameControls = document.querySelector('.game-controls');
-    createModelSelector(gameControls, settings, () => {
-        if (game.ui?.aiThinkingHistory) {
-            game.ui.aiThinkingHistory = [];
-            game.ui.renderThinkingHistory?.();
-        }
-    });
+    // モデルセレクタ（設定バーに表示）
+    const settingsBar = document.getElementById('modelSettingsBar');
+    if (settingsBar) {
+        createModelSelector(settingsBar, settings, () => {
+            if (game.ui?.aiThinkingHistory) {
+                game.ui.aiThinkingHistory = [];
+                game.ui.renderThinkingHistory?.();
+            }
+        });
+    }
 
     // API設定モーダル
     const openApiSettingsBtn = document.getElementById('openApiSettingsBtn');

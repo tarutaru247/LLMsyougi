@@ -60,6 +60,7 @@ class Settings {
         localStorage.setItem('selectedModelGote', this.selectedModelGote);
         localStorage.setItem('gemini3Thinking', this.gemini3Thinking);
         localStorage.setItem('geminiFlashThinking', this.geminiFlashThinking);
+        localStorage.setItem('botThinkingMode', this.botThinkingMode);
         // ストレージモードは両方に記録（次回起動時に参照しやすくするため）
         localStorage.setItem('storageMode', mode);
         sessionStorage.setItem('storageMode', mode);
@@ -134,6 +135,17 @@ class Settings {
         return this.geminiFlashThinking;
     }
 
+    setBotThinkingMode(mode) {
+        if (mode === 'select' || mode === 'generate') {
+            this.botThinkingMode = mode;
+            this.saveSettings(this.storageMode);
+        }
+    }
+
+    getBotThinkingMode() {
+        return this.botThinkingMode;
+    }
+
     hasSelectedModelApiKey() {
         return !!this.getApiKey(this.selectedModel);
     }
@@ -163,6 +175,7 @@ class Settings {
             selectedModelGote: this.selectedModelGote,
             gemini3Thinking: this.gemini3Thinking,
             geminiFlashThinking: this.geminiFlashThinking,
+            botThinkingMode: this.botThinkingMode,
             storageMode: this.storageMode
         };
     }
@@ -184,6 +197,9 @@ class Settings {
         if (settings.geminiFlashThinking === 'on' || settings.geminiFlashThinking === 'off') {
             this.geminiFlashThinking = settings.geminiFlashThinking;
         }
+        if (settings.botThinkingMode === 'select' || settings.botThinkingMode === 'generate') {
+            this.botThinkingMode = settings.botThinkingMode;
+        }
         if (settings.storageMode === 'session' || settings.storageMode === 'local') {
             this.storageMode = settings.storageMode;
         }
@@ -200,18 +216,29 @@ function generateModelOptions() {
 }
 
 function createModelSelector(container, settings, onModelChange) {
+    // 既存のセレクタがあれば削除（再描画用）
     const existingSelector = document.getElementById('llmModelSelector');
     if (existingSelector) existingSelector.remove();
 
-    const selectorContainer = document.createElement('div');
-    selectorContainer.id = 'llmModelSelector';
-    selectorContainer.className = 'model-selector duo';
+    const wrapper = document.createElement('div');
+    wrapper.id = 'llmModelSelector';
+    
+    // 横並び用のスタイル
+    wrapper.style.display = 'contents'; // 親のflex設定に従う
+    
+    // --- 1. モデル選択エリア ---
+    const modelContainer = document.createElement('div');
+    modelContainer.className = 'model-selector duo';
+    modelContainer.style.margin = '0';
+    modelContainer.style.display = 'flex';
+    modelContainer.style.gap = '10px';
+    modelContainer.style.alignItems = 'center';
 
     // 先手モデル
     const labelS = document.createElement('label');
     labelS.textContent = '先手モデル: ';
     labelS.htmlFor = 'modelSelectSente';
-    selectorContainer.appendChild(labelS);
+    modelContainer.appendChild(labelS);
 
     const selectS = document.createElement('select');
     selectS.id = 'modelSelectSente';
@@ -221,13 +248,13 @@ function createModelSelector(container, settings, onModelChange) {
         settings.setSelectedModelForPlayer(PLAYER.SENTE, selectS.value);
         if (onModelChange) onModelChange(selectS.value);
     });
-    selectorContainer.appendChild(selectS);
+    modelContainer.appendChild(selectS);
 
     // 後手モデル
     const labelG = document.createElement('label');
     labelG.textContent = '後手モデル: ';
     labelG.htmlFor = 'modelSelectGote';
-    selectorContainer.appendChild(labelG);
+    modelContainer.appendChild(labelG);
 
     const selectG = document.createElement('select');
     selectG.id = 'modelSelectGote';
@@ -237,9 +264,66 @@ function createModelSelector(container, settings, onModelChange) {
         settings.setSelectedModelForPlayer(PLAYER.GOTE, selectG.value);
         if (onModelChange) onModelChange(selectG.value);
     });
-    selectorContainer.appendChild(selectG);
+    modelContainer.appendChild(selectG);
+    
+    wrapper.appendChild(modelContainer);
 
-    container.appendChild(selectorContainer);
+    // --- 2. 思考モード選択エリア ---
+    const modeContainer = document.createElement('div');
+    modeContainer.style.display = 'flex';
+    modeContainer.style.alignItems = 'center';
+    modeContainer.style.gap = '10px';
+    
+    const modeLabel = document.createElement('span');
+    modeLabel.textContent = '思考モード:';
+    modeLabel.style.fontWeight = 'bold';
+    modeContainer.appendChild(modeLabel);
+
+    const radioGroup = document.createElement('div');
+    radioGroup.className = 'radio-group';
+    radioGroup.style.margin = '0';
+    radioGroup.style.display = 'flex';
+    radioGroup.style.gap = '10px';
+
+    // 選択式
+    const labelSelect = document.createElement('label');
+    labelSelect.style.cursor = 'pointer';
+    const radioSelect = document.createElement('input');
+    radioSelect.type = 'radio';
+    radioSelect.name = 'botThinkingMode';
+    radioSelect.value = 'select';
+    radioSelect.checked = settings.getBotThinkingMode() === 'select';
+    radioSelect.addEventListener('change', () => settings.setBotThinkingMode('select'));
+    labelSelect.appendChild(radioSelect);
+    labelSelect.appendChild(document.createTextNode(' 選択式 (正確)'));
+    radioGroup.appendChild(labelSelect);
+
+    // 生成式
+    const labelGen = document.createElement('label');
+    labelGen.style.cursor = 'pointer';
+    const radioGen = document.createElement('input');
+    radioGen.type = 'radio';
+    radioGen.name = 'botThinkingMode';
+    radioGen.value = 'generate';
+    radioGen.checked = settings.getBotThinkingMode() === 'generate';
+    radioGen.addEventListener('change', () => settings.setBotThinkingMode('generate'));
+    labelGen.appendChild(radioGen);
+    labelGen.appendChild(document.createTextNode(' 生成式 (自由)'));
+    radioGroup.appendChild(labelGen);
+
+    modeContainer.appendChild(radioGroup);
+
+    wrapper.appendChild(modeContainer);
+
+    // 説明文
+    const note = document.createElement('div');
+    note.style.fontSize = '12px';
+    note.style.color = '#666';
+    note.style.marginLeft = '10px';
+    note.textContent = '※ 選択式: 合法手のリストから手を選択します。反則をしませんがAIが本領を発揮できない可能性があります。/ 生成式: 自力で手を考えます。反則をする場合があります。';
+    wrapper.appendChild(note);
+
+    container.appendChild(wrapper);
 }
 
 function addSettingsModalStyles() {
@@ -251,6 +335,8 @@ function addSettingsModalStyles() {
         .model-selector.duo label { min-width: 80px; }
         .model-selector.duo select { min-width: 160px; }
         .model-selector select { padding: 5px; border-radius: 4px; border: 1px solid #ddd; }
+        .radio-group { margin: 10px 0; display: flex; align-items: center; gap: 15px; }
+        .radio-group label { cursor: pointer; display: flex; align-items: center; gap: 5px; }
         .promotion-dialog { position: absolute; background: white; border: 2px solid #333; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); z-index: 1000; text-align: center; }
         .promotion-dialog button { margin: 5px; padding: 5px 10px; }
         .captured-piece { display: inline-block; margin: 5px; padding: 5px 10px; background-color: #f8c06c; border: 1px solid #333; border-radius: 4px; cursor: pointer; }

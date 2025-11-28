@@ -375,6 +375,25 @@ class Game {
     }
     
     /**
+     * AIの手を再生成する（エラー時など）
+     */
+    retryBotMove() {
+        // 思考中フラグなどが残っていたらクリア
+        this.aiThinking = false;
+        
+        // エラー表示等をクリアして再実行
+        if (this.onAiThinkingUpdate) {
+            this.onAiThinkingUpdate('');
+        }
+        this.updateGameState();
+
+        // 少し待ってから再実行（UI更新の反映待ち）
+        setTimeout(() => {
+            this.makeBotMove();
+        }, 100);
+    }
+
+    /**
      * BOTに手を選択させる
      */
     makeBotMove() {
@@ -420,8 +439,8 @@ class Game {
             return;
         }
 
-        // BOTに指し手を決定させる
-        bot.selectMoveWithLLM(this.currentPlayer, modelKey, (move, thinking, isError) => {
+        // コールバック処理（共通）
+        const handleBotResponse = (move, thinking, isError) => {
             if (this.stopRequested) {
                 this.aiThinking = false;
                 if (this.onAiThinkingUpdate) {
@@ -443,6 +462,7 @@ class Game {
                 if (this.onAiError) {
                     this.onAiError(thinking);
                 }
+                // エラー時は対局停止状態のまま（次のターンに進まない）
                 this.updateGameState();
             } else {
                 if (move) {
@@ -479,7 +499,17 @@ class Game {
                     this.updateGameState();
                 }
             }
-        });
+        };
+
+        // 思考モードに応じてメソッドを使い分ける
+        const thinkingMode = this.settings.getBotThinkingMode();
+        
+        if (thinkingMode === 'generate') {
+            bot.generateMoveWithLLM(this.currentPlayer, modelKey, handleBotResponse);
+        } else {
+            // デフォルトは select モード
+            bot.selectMoveWithLLM(this.currentPlayer, modelKey, handleBotResponse);
+        }
     }
     
     /**

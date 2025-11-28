@@ -241,6 +241,9 @@ class UI {
                 window.settings.apiKeys[keyName] = null;
             }
         });
+        
+        // botThinkingMode は設定UI側で変更時に即時保存されるため、ここでの保存処理は不要
+
         window.settings.saveSettings(mode);
         this.closeSettingsModal();
         const msg = mode === 'session'
@@ -304,7 +307,40 @@ class UI {
     handleAiError(errorMessage) {
         const safeText = this.sanitizeText(errorMessage || 'AIエラーが発生しました');
         if (this.aiThinkingElement) {
-            this.aiThinkingElement.textContent = safeText;
+            this.aiThinkingElement.innerHTML = ''; // 表示を一度クリア
+            
+            // エラーメッセージ表示
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'ai-error-message';
+            errorDiv.textContent = safeText;
+            errorDiv.style.color = '#d32f2f';
+            errorDiv.style.padding = '10px';
+            errorDiv.style.backgroundColor = '#ffebee';
+            errorDiv.style.border = '1px solid #ef9a9a';
+            errorDiv.style.borderRadius = '4px';
+            errorDiv.style.marginBottom = '10px';
+            errorDiv.style.whiteSpace = 'pre-wrap'; // 改行を維持
+            this.aiThinkingElement.appendChild(errorDiv);
+
+            // 再生成ボタン
+            const retryBtn = document.createElement('button');
+            retryBtn.textContent = '再生成する';
+            retryBtn.className = 'retry-btn'; // 必要ならCSSでスタイリング
+            retryBtn.style.padding = '8px 16px';
+            retryBtn.style.cursor = 'pointer';
+            retryBtn.style.backgroundColor = '#2196F3';
+            retryBtn.style.color = 'white';
+            retryBtn.style.border = 'none';
+            retryBtn.style.borderRadius = '4px';
+            
+            retryBtn.onclick = () => {
+                // ボタンを無効化して連打防止
+                retryBtn.disabled = true;
+                retryBtn.textContent = '再生成中...';
+                this.game.retryBotMove();
+            };
+            
+            this.aiThinkingElement.appendChild(retryBtn);
         }
         this.hideThinkingIndicator();
     }

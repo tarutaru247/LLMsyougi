@@ -92,6 +92,127 @@ class Bot {
     }
 
     /**
+     * LLMで手を生成（生成式モード）
+     * 合法手リストを与えず、自力で考えさせる
+     */
+    async generateMoveWithLLM(player, modelKey, callback) {
+        this.thinking = true;
+        this.currentModel = modelKey;
+
+        const boardState = this.game.board.getBoardState();
+        const capturedPieces = this.game.board.getCapturedPieces();
+        const gameHistory = this.game.gameHistory;
+        
+        // 照合用に合法手を取得しておく
+        const legalMoves = this.game.getAllPossibleMoves(player);
+        if (!legalMoves.length) {
+            this.thinking = false;
+            callback(null, '合法手がありません（詰み/手詰まり）', true);
+            return;
+        }
+
+        const model = LLM_MODELS[modelKey];
+        
+        // ランダムダミーは既存の処理へ委譲
+        if (model && model.isRandom) {
+            return this.selectMoveWithLLM(player, modelKey, callback);
+        }
+
+        const prompt = this.createPromptForGenerativeMode(
+            player,
+            boardState,
+            capturedPieces,
+            gameHistory,
+            modelKey
+        );
+
+        const imageBase64 = this.captureBoardSnapshot(player === PLAYER.GOTE);
+        const apiKey = this.game.settings.getApiKey(modelKey);
+        
+        if (!apiKey) {
+            this.thinking = false;
+            callback(null, 'APIキーが設定されていません。', true);
+            return;
+        }
+
+        try {
+            const responseText = await this.sendRequestToLLM(model, apiKey, prompt, imageBase64);
+            
+            // 既存の抽出ロジックを流用（notation からのマッチングを期待）
+            // プロンプトで "notation" フィールドに標準棋譜（例: ７六歩）を書くように指示する
+            const move = this.extractMoveFromResponse(responseText, player, legalMoves);
+            
+            this.thinking = false;
+
+            if (move) {
+                callback(move, responseText, false);
+            } else {
+                // 手が見つからない、または合法手リストにない（反則手）
+                callback(null, responseText + '\n\nエラー: 指し手として解釈できない、または反則手（合法手リストに存在しない手）です。', true);
+            }
+        } catch (error) {
+            console.error('LLM API error:', error);
+            this.thinking = false;
+            callback(null, `APIエラーが発生しました: ${error.message}`, true);
+        }
+    }
+
+    /**
+     * 生成モード用プロンプト
+     * 合法手リストを含めず、棋譜表記での回答を求める
+     */
+    createPromptForGenerativeMode(player, boardState, capturedPieces, gameHistory, modelKey) {
+        const turnText = player === PLAYER.SENTE ? '先手' : '後手';
+        const roleText = `あなたは${turnText}です。`;
+        const lastMove = gameHistory && gameHistory.length > 0 ? gameHistory[gameHistory.length - 1] : null;
+        const lastMoveText = lastMove
+            ? `直前の一手: ${lastMove.player === PLAYER.SENTE ? '先手' : '後手'} が ${this.moveToNotation(lastMove)}`
+            : '直前の一手: まだありません';
+        const inCheck = this.game.isPlayerInCheck(player);
+        
+        // 盤面表現の生成
+        const sfen = this.generateSFEN(boardState);
+        const asciiBoard = this.generateAsciiBoard(boardState);
+        
+        const historyText = this.formatHistory(gameHistory) || 'まだ指し手なし';
+        const capturedText = `先手: ${this.formatCapturedPiecesForPrompt(capturedPieces[PLAYER.SENTE])}\n後手: ${this.formatCapturedPiecesForPrompt(capturedPieces[PLAYER.GOTE])}`;
+        const thinkingDirective = this.getThinkingDirective(modelKey);
+
+        const instruction = [
+            'あなたはプロの棋士です。盤面を見て、次の一手を自力で考え、JSON形式で答えてください。',
+            roleText,
+            lastMoveText,
+            `現在の手番: ${turnText}。現在王手: ${inCheck ? 'はい' : 'いいえ'}。`,
+            thinkingDirective,
+            '【重要】',
+            '出力は必ず以下のJSON形式の1行のみとしてください。マークダウンや解説文をJSONの外に書かないでください。',
+            '{"notation": "指し手", "reason": "理由"}',
+            '',
+            'notation（指し手）の形式:',
+            '- 日本語の標準棋譜表記（例: "７六歩", "２二角成", "５二金右", "８八角成", "同銀"）',
+            '- または USI/SFEN形式（例: "7g7f", "2b2a+", "5a5b"）',
+            '- 必ず盤面の状況とルール（駒の動き、王手回避、打ち歩詰めなど）に従った「合法手」であること。',
+            '',
+            '例: {"notation": "７六歩", "reason": "角道を開け、攻めの足掛かりを作るため。"}',
+            '',
+            '【盤面情報】',
+            'SFEN:',
+            sfen,
+            '',
+            'テキスト盤面（vは後手の駒）:',
+            asciiBoard,
+            '',
+            '【持ち駒】',
+            capturedText,
+            '【棋譜】',
+            historyText,
+            '画像: 盤面と持ち駒の最新スクリーンショットを添付しています。'
+        ];
+
+        return instruction.join('\n');
+    }
+
+    /**
      * プロンプト生成：盤面を正確かつ簡潔に伝える
      */
     createPromptForLLM(player, boardState, capturedPieces, gameHistory, legalMoves, modelKey) {
@@ -201,6 +322,84 @@ class Bot {
         return board;
     }
 
+    /**
+     * SFEN (Shogi Forsyth-Edwards Notation) 文字列を生成
+     * 盤面配置のみ（手番や持ち駒は別途プロンプトで補完）
+     */
+    generateSFEN(boardState) {
+        let sfen = "";
+        const pieceMap = {
+            [PIECE_TYPES.FU]: "P", [PIECE_TYPES.KYOSHA]: "L", [PIECE_TYPES.KEIMA]: "N", [PIECE_TYPES.GIN]: "S",
+            [PIECE_TYPES.KIN]: "G", [PIECE_TYPES.KAKU]: "B", [PIECE_TYPES.HISHA]: "R", [PIECE_TYPES.GYOKU]: "K",
+            [PIECE_TYPES.TO]: "+P", [PIECE_TYPES.NKYO]: "+L", [PIECE_TYPES.NKEI]: "+N", [PIECE_TYPES.NGIN]: "+S",
+            [PIECE_TYPES.UMA]: "+B", [PIECE_TYPES.RYU]: "+R"
+        };
+
+        for (let row = 0; row < BOARD_SIZE.ROWS; row++) {
+            let emptyCount = 0;
+            for (let col = 0; col < BOARD_SIZE.COLS; col++) {
+                const cell = boardState[row][col];
+                if (cell.type === PIECE_TYPES.EMPTY) {
+                    emptyCount++;
+                } else {
+                    if (emptyCount > 0) {
+                        sfen += emptyCount;
+                        emptyCount = 0;
+                    }
+                    let char = pieceMap[cell.type] || "";
+                    if (cell.player === PLAYER.GOTE) {
+                        char = char.toLowerCase(); // 後手は小文字
+                    }
+                    sfen += char;
+                }
+            }
+            if (emptyCount > 0) {
+                sfen += emptyCount;
+            }
+            if (row < BOARD_SIZE.ROWS - 1) {
+                sfen += "/";
+            }
+        }
+        return sfen;
+    }
+
+    /**
+     * テキスト形式の盤面（ASCII/日本語グリッド）を生成
+     * 視覚的な配置をLLMに伝えるため
+     */
+    generateAsciiBoard(boardState) {
+        const lines = [];
+        lines.push("  ９ ８ ７ ６ ５ ４ ３ ２ １");
+        lines.push("+---------------------------+");
+        
+        const rowChars = ['一', '二', '三', '四', '五', '六', '七', '八', '九'];
+
+        for (let row = 0; row < BOARD_SIZE.ROWS; row++) {
+            let line = "|";
+            for (let col = 0; col < BOARD_SIZE.COLS; col++) {
+                const cell = boardState[row][col];
+                if (cell.type === PIECE_TYPES.EMPTY) {
+                    line += " . ";
+                } else {
+                    let name = PIECE_NAMES[cell.type];
+                    if (cell.type === PIECE_TYPES.TO) name = "と"; // 1文字化
+                    else if (cell.type === PIECE_TYPES.NKYO) name = "杏";
+                    else if (cell.type === PIECE_TYPES.NKEI) name = "圭";
+                    else if (cell.type === PIECE_TYPES.NGIN) name = "全";
+                    else if (cell.type === PIECE_TYPES.UMA) name = "馬";
+                    else if (cell.type === PIECE_TYPES.RYU) name = "龍";
+                    
+                    const mark = cell.player === PLAYER.SENTE ? " " : "v"; // 先手は空白、後手はv
+                    line += `${mark}${name}`;
+                }
+            }
+            line += `|${rowChars[row]}`;
+            lines.push(line);
+        }
+        lines.push("+---------------------------+");
+        return lines.join("\n");
+    }
+
     buildLegalMovesPayload(legalMoves) {
         return legalMoves.map((move, index) => ({
             id: index + 1,
@@ -228,6 +427,27 @@ class Bot {
         const from = this.positionToSquare(move.from);
         const promote = move.promote ? '成' : '';
         return `${from}${pieceName}${to}${promote}`;
+    }
+
+    /**
+     * 一般的な棋譜表記（移動元を含まない）を生成する
+     * 例: ７六歩, ２二角成, 同歩
+     */
+    createSimpleNotation(move, lastMoveTo = null) {
+        const pieceName = PIECE_NAMES[move.pieceType];
+        const promote = move.promote ? '成' : '';
+        
+        // 直前の指し手と同じ場所なら「同」を使う
+        if (lastMoveTo && move.to.row === lastMoveTo.row && move.to.col === lastMoveTo.col) {
+            return `同${pieceName}${promote}`;
+        }
+
+        const to = this.positionToSquare(move.to);
+        if (move.type === 'drop') {
+            return `${to}${pieceName}打`;
+        }
+        // 移動元を含まない表記（相対情報なし）
+        return `${to}${pieceName}${promote}`;
     }
 
     formatCapturedPiecesForPrompt(capturedPieces) {
@@ -404,12 +624,23 @@ class Bot {
     }
 
     extractMoveFromResponse(response, player, legalMoves) {
+        // 直前の指し手の位置を取得（「同」の判定用）
+        let lastMoveTo = null;
+        if (this.game && this.game.gameHistory && this.game.gameHistory.length > 0) {
+            lastMoveTo = this.game.gameHistory[this.game.gameHistory.length - 1].to;
+        }
+
         const parsed = this.tryParseJson(response);
-        const normalizedLegal = legalMoves.map((m, idx) => ({
-            idx,
-            move: m,
-            norm: this.normalizeNotation(this.moveToNotation(m))
-        }));
+        const normalizedLegal = legalMoves.map((m, idx) => {
+            const simple = this.createSimpleNotation(m, lastMoveTo);
+            return {
+                idx,
+                move: m,
+                norm: this.normalizeNotation(this.moveToNotation(m)),
+                simpleNorm: this.normalizeNotation(simple), // 「同」対応の簡易表記
+                dropNorm: m.type === 'drop' ? this.normalizeNotation(simple.replace('打', '')) : null // 「打」省略表記
+            };
+        });
 
         if (parsed) {
             const rawId = parsed.move_id ?? parsed.id ?? parsed.choice ?? parsed.moveId ?? parsed.index;
@@ -419,7 +650,17 @@ class Bot {
             }
             if (parsed.notation) {
                 const norm = this.normalizeNotation(parsed.notation);
-                const hit = normalizedLegal.find(e => e.norm === norm);
+                
+                // 1. 完全一致
+                let hit = normalizedLegal.find(e => e.norm === norm);
+                if (hit) return hit.move;
+
+                // 2. 簡易一致
+                hit = normalizedLegal.find(e => e.simpleNorm === norm);
+                if (hit) return hit.move;
+
+                // 3. 打つ手の「打」省略一致
+                hit = normalizedLegal.find(e => e.dropNorm === norm);
                 if (hit) return hit.move;
             }
         }
@@ -433,7 +674,13 @@ class Bot {
         const moveMatch = response.match(/指し手[:：]\s*(.+?)(?:$|\n)/);
         if (moveMatch) {
             const norm = this.normalizeNotation(moveMatch[1].trim());
-            const hit = normalizedLegal.find(e => e.norm === norm);
+            let hit = normalizedLegal.find(e => e.norm === norm);
+            if (hit) return hit.move;
+            
+            hit = normalizedLegal.find(e => e.simpleNorm === norm);
+            if (hit) return hit.move;
+
+            hit = normalizedLegal.find(e => e.dropNorm === norm);
             if (hit) return hit.move;
         }
 

@@ -28,6 +28,18 @@ button:hover { background-color: #3a5a8f; }
 select { background-color: white; color: #333; }
 
 /* Game Container */
+.settings-bar {
+    background-color: #fff;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+}
+
 .game-container { display: flex; gap: 20px; margin-top: 20px; }
 .board-container { display: flex; flex-direction: column; align-items: center; }
 

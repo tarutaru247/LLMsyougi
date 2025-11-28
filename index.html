@@ -24,6 +24,9 @@
             </div>
         </header>
 
+        <!-- 設定バー（モデル選択・思考モード） -->
+        <div id="modelSettingsBar" class="settings-bar"></div>
+
         <div class="game-container">
             <div class="board-container">
                 <div class="captured-pieces top">
@@ -62,13 +65,16 @@
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>API設定</h2>
+            <h2>設定</h2>
+            
+            <h3>APIキー設定</h3>
             <p class="api-warning">
                 ・「ブラウザに保存」は localStorage に保存し、タブを閉じても残ります（共有PCでは非推奨）。<br>
                 ・「一時的に保存」は sessionStorage にのみ保存し、このタブを閉じると消えます。<br>
                 ・通信は必ず HTTPS で行ってください。<br>
                 ・設定のエクスポートを使うとキーも含まれます。共有前に削除してください。
             </p>
+            
             <div class="api-settings">
                 <div class="api-setting">
                     <label for="gpt51Key">GPT-5.1 API Key:</label>
