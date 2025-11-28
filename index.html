@@ -27,50 +27,51 @@
         <!-- 設定バー（モデル選択・思考モード） -->
         <div id="modelSettingsBar" class="settings-bar"></div>
 
-        <div class="game-container">
-            <div class="board-container">
-                <div class="captured-pieces top">
-                    <h3>後手の持ち駒</h3>
-                    <div id="capturedPiecesGote" class="pieces-container"></div>
-                </div>
-
-                <canvas id="shogiBoard" width="450" height="500"></canvas>
-
-                <div class="captured-pieces bottom">
-                    <h3>先手の持ち駒</h3>
-                    <div id="capturedPiecesSente" class="pieces-container"></div>
-                </div>
-            </div>
-
-            <div class="game-info">
-                <div class="game-status">
-                    <h3>ゲーム状態</h3>
-                    <p id="gameStatus">先手の手番です</p>
-                </div>
-
-                <div class="ai-thinking">
-                    <h3 class="ai-thinking-title">AIの思考</h3>
-                    <div class="thinking-split">
-                        <div id="aiThinkingBlockSente" class="thinking-block">
-                            <h4 id="aiThinkingTitleSente">先手の思考</h4>
-                            <div id="aiThinkingSente" class="thinking-container"></div>
-                        </div>
-                        <div id="aiThinkingBlockGote" class="thinking-block">
-                            <h4 id="aiThinkingTitleGote">後手の思考</h4>
-                            <div id="aiThinkingGote" class="thinking-container"></div>
-                        </div>
-                    </div>
-                </div>
-
+                <div class="game-container">
+            <div class="record-column">
                 <div class="game-record">
                     <h3>棋譜</h3>
                     <div id="gameRecord" class="record-container"></div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Settings Modal -->
+            <div class="board-column">
+                <div class="board-container">
+                    <div class="captured-pieces top">
+                        <h3>後手の持ち駒</h3>
+                        <div id="capturedPiecesGote" class="pieces-container"></div>
+                    </div>
+
+                    <canvas id="shogiBoard" width="450" height="500"></canvas>
+
+                    <div class="captured-pieces bottom">
+                        <h3>先手の持ち駒</h3>
+                        <div id="capturedPiecesSente" class="pieces-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-column">
+                <div class="game-status">
+                    <h3>ゲーム状態</h3>
+                    <p id="gameStatus">先手の番です</p>
+                </div>
+
+                <div class="ai-thinking">
+                    <h3 class="ai-thinking-title">AIの思考</h3>
+                    <div class="thinking-split">
+                        <div id="aiThinkingBlockGote" class="thinking-block">
+                            <h4 id="aiThinkingTitleGote">後手の思考</h4>
+                            <div id="aiThinkingGote" class="thinking-container"></div>
+                        </div>
+                        <div id="aiThinkingBlockSente" class="thinking-block">
+                            <h4 id="aiThinkingTitleSente">先手の思考</h4>
+                            <div id="aiThinkingSente" class="thinking-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- Settings Modal -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
