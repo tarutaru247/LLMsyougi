@@ -59,7 +59,7 @@ class Game {
     stopAiMatch() {
         this.stopRequested = true;
         this.aiThinking = false;
-        if (this.onAiThinkingUpdate) this.onAiThinkingUpdate('');
+        if (this.onAiThinkingUpdate) this.onAiThinkingUpdate('', this.currentPlayer, null);
         if (this.ui && this.ui.hideAiThinking) {
             this.ui.hideAiThinking();
         }
@@ -78,7 +78,7 @@ class Game {
         this.isBrowsingHistory = false; // フラグもリセット
         // AI思考履歴をクリア
         if (this.onAiThinkingUpdate) {
-            this.onAiThinkingUpdate('');
+            this.onAiThinkingUpdate('', this.currentPlayer, null);
         }
         if (this.ui && this.ui.aiThinkingHistory) {
             this.ui.aiThinkingHistory = [];
@@ -383,7 +383,7 @@ class Game {
         
         // エラー表示等をクリアして再実行
         if (this.onAiThinkingUpdate) {
-            this.onAiThinkingUpdate('');
+            this.onAiThinkingUpdate('', this.currentPlayer, null);
         }
         this.updateGameState();
 
@@ -409,7 +409,7 @@ class Game {
             const inCheck = this.isPlayerInCheck(this.currentPlayer);
             this.gameResult = this.currentPlayer === PLAYER.SENTE ? 'gote_win' : 'sente_win';
             const msg = inCheck ? '詰み（合法手なし）' : '手詰まり（合法手なし）';
-            if (this.onAiThinkingUpdate) this.onAiThinkingUpdate(msg);
+            if (this.onAiThinkingUpdate) this.onAiThinkingUpdate(msg, this.currentPlayer, null);
             this.updateGameState();
             return;
         }
@@ -420,7 +420,7 @@ class Game {
         
         // AIの思考を初期化
         if (this.onAiThinkingUpdate) {
-            this.onAiThinkingUpdate('');
+            this.onAiThinkingUpdate('', this.currentPlayer, null);
         }
         
         // BOTのインスタンスを作成
@@ -444,14 +444,14 @@ class Game {
             if (this.stopRequested) {
                 this.aiThinking = false;
                 if (this.onAiThinkingUpdate) {
-                    this.onAiThinkingUpdate("");
+                    this.onAiThinkingUpdate('', this.currentPlayer, null);
                 }
                 this.updateGameState();
                 return;
             }
 
             if (this.onAiThinkingUpdate) {
-                this.onAiThinkingUpdate(thinking);
+                this.onAiThinkingUpdate(thinking, this.currentPlayer, LLM_MODELS[modelKey].name);
             }
 
             // 思考完了フラグ

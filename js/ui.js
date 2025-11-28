@@ -7,8 +7,8 @@ class UI {
      */
     constructor(game) {
         this.game = game;
-        this.aiThinkingHistory = [];
-        this.aiThinkingIndicator = null;
+        this.aiThinkingHistory = { sente: [], gote: [] };
+        this.aiThinkingIndicator = { sente: null, gote: null };
 
         // DOM参照
         this.gameStatusElement = document.getElementById('gameStatus');
@@ -25,18 +25,19 @@ class UI {
         this.closeModalButton = document.querySelector('.close');
         this.saveApiSettingsLocalButton = document.getElementById('saveApiSettingsLocal');
         this.saveApiSettingsSessionButton = document.getElementById('saveApiSettingsSession');
-        this.aiThinkingElement = document.getElementById('aiThinking');
+        this.aiThinkingSenteElement = document.getElementById('aiThinkingSente');
+        this.aiThinkingGoteElement = document.getElementById('aiThinkingGote');
+        this.aiThinkingTitleSente = document.getElementById('aiThinkingTitleSente');
+        this.aiThinkingTitleGote = document.getElementById('aiThinkingTitleGote');
         this.aiErrorRetryButton = null;
         this.aiTitle = document.querySelector('.ai-thinking-title');
 
         this.promotionDialog = null;
 
         // 既存の思考中インジケータがあれば除去し、初期状態で非表示にする
-        const existingIndicator = document.querySelector('.ai-thinking-indicator');
-        if (existingIndicator && existingIndicator.parentNode) {
-            existingIndicator.parentNode.removeChild(existingIndicator);
-        }
-        this.aiThinkingIndicator = null;
+        const existingIndicator = document.querySelectorAll('.ai-thinking-indicator');
+        existingIndicator.forEach(ind => ind.parentNode && ind.parentNode.removeChild(ind));
+        this.aiThinkingIndicator = { sente: null, gote: null };
 
         this.setupEventListeners();
         this.setupGameEventHandlers();
@@ -77,7 +78,7 @@ class UI {
         this.game.onGameRecordUpdate = (history) => this.updateGameRecord(history);
         this.game.onPromotionDialogOpen = (fromPos, toPos) => this.showPromotionDialog(fromPos, toPos);
         this.game.onCapturedPiecesUpdate = () => this.updateCapturedPieces();
-        this.game.onAiThinkingUpdate = (content) => this.updateAiThinking(content);
+        this.game.onAiThinkingUpdate = (content, player, modelName) => this.updateAiThinking(content, player, modelName);
         this.game.onAiError = (errorMessage) => this.handleAiError(errorMessage);
     }
 
@@ -253,63 +254,62 @@ class UI {
     }
 
     /**
-     * AI思考内容を表示（履歴を保持）
-     */    updateAiThinking(content) {
-        if (!this.aiThinkingElement) return;
+     * AI思考内容を表示（先手/後手で分離）
+     */
+    updateAiThinking(content, player, modelName) {
+        const isSente = player === PLAYER.SENTE;
+        const key = isSente ? 'sente' : 'gote';
+        const targetEl = isSente ? this.aiThinkingSenteElement : this.aiThinkingGoteElement;
+        const titleEl = isSente ? this.aiThinkingTitleSente : this.aiThinkingTitleGote;
+        if (titleEl && modelName) {
+            titleEl.textContent = `${isSente ? '先手' : '後手'}（${modelName}）の思考`;
+        }
+        if (!targetEl) return;
 
         const parsed = this.tryParseMoveJson(content);
         if (parsed) {
-            const last = this.aiThinkingHistory[this.aiThinkingHistory.length - 1];
+            const hist = this.aiThinkingHistory[key];
+            const last = hist[hist.length - 1];
             const isDuplicate =
                 last &&
                 String(last.move_id ?? '') === String(parsed.move_id ?? '') &&
                 String(last.notation ?? '') === String(parsed.notation ?? '') &&
                 String(last.reason ?? '') === String(parsed.reason ?? '');
             if (!isDuplicate) {
-                this.aiThinkingHistory.push(parsed);
-                if (this.aiThinkingHistory.length > 30) this.aiThinkingHistory.shift();
+                hist.push(parsed);
+                if (hist.length > 30) hist.shift();
             }
-            this.hideThinkingIndicator();
+            this.hideThinkingIndicator(isSente);
             this.renderThinkingHistory();
         } else {
             if (!content) {
-                this.hideThinkingIndicator();
-                if (this.aiThinkingHistory.length > 0) {
+                this.hideThinkingIndicator(isSente);
+                const hist = this.aiThinkingHistory[key];
+                if (hist.length > 0) {
                     this.renderThinkingHistory();
                 } else {
-                    this.aiThinkingElement.textContent = '';
+                    targetEl.textContent = '';
                 }
                 return;
             }
 
             const text = this.sanitizeText(content);
             const shortText =
-                !text || text.length > 40 || text.includes('{') ? '思考中…' : text;
-            this.showThinkingIndicator(shortText);
-            if (this.aiThinkingHistory.length > 0) {
+                !text || text.length > 40 || text.includes('{') ? '思考中' : text;
+            this.showThinkingIndicator(shortText, isSente);
+            const hist = this.aiThinkingHistory[key];
+            if (hist.length > 0) {
                 this.renderThinkingHistory();
             } else {
-                this.aiThinkingElement.textContent = '';
+                targetEl.textContent = '';
             }
         }
     }
-
-    /** AI表示クリア（履歴もクリア） */
-    hideAiThinking() {
-        if (this.aiThinkingElement) {
-            this.aiThinkingElement.textContent = '';
-        }
-        this.aiThinkingHistory = [];
-        this.hideThinkingIndicator();
-    }
-
-    /** AIエラー表示（履歴は保持） */
     handleAiError(errorMessage) {
         const safeText = this.sanitizeText(errorMessage || 'AIエラーが発生しました');
-        if (this.aiThinkingElement) {
-            this.aiThinkingElement.innerHTML = ''; // 表示を一度クリア
-            
-            // エラーメッセージ表示
+        const showError = (element) => {
+            if (!element) return;
+            element.innerHTML = '';
             const errorDiv = document.createElement('div');
             errorDiv.className = 'ai-error-message';
             errorDiv.textContent = safeText;
@@ -319,32 +319,14 @@ class UI {
             errorDiv.style.border = '1px solid #ef9a9a';
             errorDiv.style.borderRadius = '4px';
             errorDiv.style.marginBottom = '10px';
-            errorDiv.style.whiteSpace = 'pre-wrap'; // 改行を維持
-            this.aiThinkingElement.appendChild(errorDiv);
-
-            // 再生成ボタン
-            const retryBtn = document.createElement('button');
-            retryBtn.textContent = '再生成する';
-            retryBtn.className = 'retry-btn'; // 必要ならCSSでスタイリング
-            retryBtn.style.padding = '8px 16px';
-            retryBtn.style.cursor = 'pointer';
-            retryBtn.style.backgroundColor = '#2196F3';
-            retryBtn.style.color = 'white';
-            retryBtn.style.border = 'none';
-            retryBtn.style.borderRadius = '4px';
-            
-            retryBtn.onclick = () => {
-                // ボタンを無効化して連打防止
-                retryBtn.disabled = true;
-                retryBtn.textContent = '再生成中...';
-                this.game.retryBotMove();
-            };
-            
-            this.aiThinkingElement.appendChild(retryBtn);
-        }
-        this.hideThinkingIndicator();
+            errorDiv.style.whiteSpace = 'pre-wrap';
+            element.appendChild(errorDiv);
+        };
+        showError(this.aiThinkingSenteElement);
+        showError(this.aiThinkingGoteElement);
+        this.hideThinkingIndicator(true);
+        this.hideThinkingIndicator(false);
     }
-
     /** 値を安全な文字列に変換 */
     sanitizeText(value) {
         if (value === null || value === undefined) return '';
@@ -415,40 +397,47 @@ class UI {
         return wrap;
     }
 
-    /** 履歴をまとめて描画（最新だけ強調） */
+    /** 先手/後手別の思考履歴を描画 */
     renderThinkingHistory() {
-        if (!this.aiThinkingElement) return;
-        this.aiThinkingElement.innerHTML = '';
-        const len = this.aiThinkingHistory.length;
-        if (len === 0) {
-            this.aiThinkingElement.textContent = '思考履歴はありません';
-            return;
-        }
-        this.aiThinkingHistory.forEach((entry, idx) => {
-            const block = this.createMoveBlock(entry, idx === len - 1);
-            this.aiThinkingElement.appendChild(block);
-        });
-        this.aiThinkingElement.scrollTop = this.aiThinkingElement.scrollHeight;
+        const renderOne = (key, element) => {
+            if (!element) return;
+            element.innerHTML = '';
+            const hist = this.aiThinkingHistory[key];
+            if (!hist || hist.length === 0) {
+                element.textContent = '思考履歴はありません';
+                return;
+            }
+            hist.forEach((entry, idx) => {
+                const block = this.createMoveBlock(entry, idx === hist.length - 1);
+                element.appendChild(block);
+            });
+            element.scrollTop = element.scrollHeight;
+        };
+        renderOne('sente', this.aiThinkingSenteElement);
+        renderOne('gote', this.aiThinkingGoteElement);
     }
 
-    /** 思考中インジケータ（タイトル横）表示 */
-    showThinkingIndicator(text = '思考中...') {
-        if (!this.aiTitle) return;
-        if (!this.aiThinkingIndicator) {
-            this.aiThinkingIndicator = document.createElement('span');
-            this.aiThinkingIndicator.className = 'ai-thinking-indicator';
-            this.aiTitle.appendChild(this.aiThinkingIndicator);
+    /** 思考インジケータ（タイトル横）を表示 */
+    showThinkingIndicator(text = '思考中...', isSente = true) {
+        const title = isSente ? this.aiThinkingTitleSente : this.aiThinkingTitleGote;
+        const key = isSente ? 'sente' : 'gote';
+        if (!title) return;
+        if (!this.aiThinkingIndicator[key]) {
+            const span = document.createElement('span');
+            span.className = 'ai-thinking-indicator';
+            title.appendChild(span);
+            this.aiThinkingIndicator[key] = span;
         }
-        this.aiThinkingIndicator.textContent = ` (${text})`;
+        this.aiThinkingIndicator[key].textContent = ` (${text})`;
     }
 
-    hideThinkingIndicator() {
-        if (this.aiThinkingIndicator && this.aiThinkingIndicator.parentNode) {
-            this.aiThinkingIndicator.parentNode.removeChild(this.aiThinkingIndicator);
+    hideThinkingIndicator(isSente = true) {
+        const key = isSente ? 'sente' : 'gote';
+        const indicator = this.aiThinkingIndicator[key];
+        if (indicator && indicator.parentNode) {
+            indicator.parentNode.removeChild(indicator);
         }
-        this.aiThinkingIndicator = null;
+        this.aiThinkingIndicator[key] = null;
     }
 }
-
-
 
