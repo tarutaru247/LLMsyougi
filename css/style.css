@@ -76,7 +76,8 @@ select { background-color: white; color: #333; }
 
 /* AI Thinking Panel */
 .ai-thinking { display: block; }
-.thinking-split { display: flex; flex-direction: column; gap: 10px; }
+.thinking-split { display: flex; flex-direction: row; gap: 10px; }
+.thinking-block { flex: 1 1 0; }
 .thinking-container { height: 300px; overflow-y: auto; background-color: #f9f9f9; padding: 10px; border: 1px solid #eee; border-radius: 4px; font-family: 'Helvetica Neue', Arial, sans-serif; white-space: normal; margin-top: 6px; }
 .ai-move-block { background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: 6px 8px 6px; line-height: 1.4; white-space: normal; font-family: 'Helvetica Neue', Arial, sans-serif; }
 .ai-move-block.latest { border-color: #4a6da7; box-shadow: 0 0 0 2px rgba(74,109,167,0.12); }

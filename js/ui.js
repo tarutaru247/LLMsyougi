@@ -472,9 +472,9 @@ class UI {
         const showGote = showBoth || mode === 'llm';
         const showSente = showBoth;
 
-        // 並び順: AI対AIでは後手が上・先手が下
-        if (this.aiThinkingBlockGote) this.aiThinkingBlockGote.style.order = '1';
-        if (this.aiThinkingBlockSente) this.aiThinkingBlockSente.style.order = showBoth ? '2' : '1';
+        // 並び順: 左に先手、右に後手
+        if (this.aiThinkingBlockSente) this.aiThinkingBlockSente.style.order = '1';
+        if (this.aiThinkingBlockGote) this.aiThinkingBlockGote.style.order = '2';
 
         if (this.aiThinkingBlockSente) {
             this.aiThinkingBlockSente.style.display = showSente ? 'block' : 'none';
