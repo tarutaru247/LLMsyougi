@@ -684,11 +684,12 @@ class UI {
                 element.textContent = '思考履歴はありません';
                 return;
             }
-            hist.forEach((entry, idx) => {
-                const block = this.createMoveBlock(entry, idx === hist.length - 1);
+            const reversed = [...hist].reverse(); // 最新を上に
+            reversed.forEach((entry, idx) => {
+                const block = this.createMoveBlock(entry, idx === 0);
                 element.appendChild(block);
             });
-            element.scrollTop = element.scrollHeight;
+            element.scrollTop = 0; // 最新が上なので先頭へ
         };
         renderOne('sente', this.aiThinkingSenteElement);
         renderOne('gote', this.aiThinkingGoteElement);
