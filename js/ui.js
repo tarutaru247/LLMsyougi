@@ -231,6 +231,44 @@ class UI {
 
         const toRowMap = ['一','二','三','四','五','六','七','八','九'];
         const toFullWidth = (n) => String(n).replace(/[0-9]/g, d => '０１２３４５６７８９'[Number(d)]);
+        const fwDigit = ['０','１','２','３','４','５','６','７','８','９'];
+
+        const unpromoteMap = {
+            [PIECE_TYPES.TO]: PIECE_TYPES.FU,
+            [PIECE_TYPES.NKYO]: PIECE_TYPES.KYO,
+            [PIECE_TYPES.NKEI]: PIECE_TYPES.KEI,
+            [PIECE_TYPES.NGIN]: PIECE_TYPES.GIN,
+            [PIECE_TYPES.UMA]: PIECE_TYPES.KAKU,
+            [PIECE_TYPES.RYU]: PIECE_TYPES.HISHA
+        };
+
+        const baseName = (pt) => {
+            const unpromoted = unpromoteMap[pt] ?? pt;
+            return PIECE_NAMES[unpromoted] || '';
+        };
+
+        const promotedName = (pt) => {
+            switch (pt) {
+                case PIECE_TYPES.TO: return 'と';
+                case PIECE_TYPES.NKYO: return '成香';
+                case PIECE_TYPES.NKEI: return '成桂';
+                case PIECE_TYPES.NGIN: return '成銀';
+                case PIECE_TYPES.UMA: return '馬';
+                case PIECE_TYPES.RYU: return '龍';
+                default: return PIECE_NAMES[pt] || '';
+            }
+        };
+
+        const pieceLabel = (pt, promoteFlag) => {
+            if (promoteFlag) {
+                return `${baseName(pt)}成`; // 例: 歩成
+            }
+            // 既に成り駒ならそのまま
+            if (unpromoteMap[pt]) {
+                return promotedName(pt);
+            }
+            return baseName(pt);
+        };
 
         const senteModelKey = window.settings ? window.settings.getSelectedModelForPlayer(PLAYER.SENTE) : null;
         const goteModelKey = window.settings ? window.settings.getSelectedModelForPlayer(PLAYER.GOTE) : null;
@@ -243,26 +281,31 @@ class UI {
         lines.push(`後手：${goteName}`);
         lines.push('手数----指手---------消費時間--');
 
+        let lastDest = null;
+
         const formatMove = (mv) => {
             const toCol = 9 - mv.to.col;
             const toRow = toRowMap[mv.to.row];
-            const pieceName = PIECE_NAMES[mv.pieceType] || '';
+            const useSame = lastDest && lastDest.row === mv.to.row && lastDest.col === mv.to.col;
+            const destText = useSame ? '同' : `${fwDigit[toCol]}${toRow}`;
+            const name = pieceLabel(mv.pieceType, mv.promote);
 
             if (mv.type === 'drop') {
-                return `${toFullWidth(toCol)}${toRow}${pieceName}打      `;
+                lastDest = { ...mv.to };
+                return `${destText}${name}打`;
             }
 
             const fromCol = 9 - mv.from.col;
-            const fromRow = toRowMap[mv.from.row];
-            let text = `${toFullWidth(toCol)}${toRow}${pieceName}`;
-            if (mv.promote) text += '成';
-            text += `(${toFullWidth(fromCol)}${fromRow})`;
-            return text.padEnd(13, ' ');
+            const fromRow = mv.from.row + 1; // 1-9
+            let text = `${destText}${name}`;
+            text += `(${fromCol}${fromRow})`;
+            lastDest = { ...mv.to };
+            return text;
         };
 
         history.forEach((mv, idx) => {
             const no = String(idx + 1).padStart(4, ' ');
-            const moveText = formatMove(mv);
+            const moveText = formatMove(mv).padEnd(12, ' ');
             lines.push(`${no} ${moveText} ( 0:00/00:00:00)`);
         });
 
