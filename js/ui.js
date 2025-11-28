@@ -447,6 +447,35 @@ class UI {
         }
         this.aiThinkingIndicator[key] = null;
     }
+
+    /**
+     * モードに応じて思考欄の表示/非表示を切り替える
+     * human: 両方非表示
+     * llm: 後手のみ表示（AIが後手）
+     * llm-vs-llm: 両方表示
+     */
+    updateThinkingVisibility(mode) {
+        const showBoth = mode === 'llm-vs-llm';
+        const showGote = showBoth || mode === 'llm';
+        const showSente = showBoth;
+
+        if (this.aiThinkingBlockSente) {
+            this.aiThinkingBlockSente.style.display = showSente ? 'block' : 'none';
+            if (!showSente) {
+                this.aiThinkingSenteElement && (this.aiThinkingSenteElement.textContent = '');
+                this.aiThinkingHistory.sente = [];
+                this.hideThinkingIndicator(true);
+            }
+        }
+        if (this.aiThinkingBlockGote) {
+            this.aiThinkingBlockGote.style.display = showGote ? 'block' : 'none';
+            if (!showGote) {
+                this.aiThinkingGoteElement && (this.aiThinkingGoteElement.textContent = '');
+                this.aiThinkingHistory.gote = [];
+                this.hideThinkingIndicator(false);
+            }
+        }
+    }
 }
 
 
