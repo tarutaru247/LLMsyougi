@@ -533,7 +533,7 @@ class Bot {
         let fullContent = '';
 
         if (this.game?.onAiThinkingUpdate) {
-            this.game.onAiThinkingUpdate('思考中...');
+            this.game.onAiThinkingUpdate('思考中...', this.game.currentPlayer, model.name);
         }
 
         while (true) {
@@ -553,7 +553,7 @@ class Bot {
                     if (delta?.content) {
                         fullContent += delta.content;
                         if (this.game?.onAiThinkingUpdate) {
-                            this.game.onAiThinkingUpdate(fullContent);
+                            this.game.onAiThinkingUpdate(fullContent, this.game.currentPlayer, model.name);
                         }
                     }
                 } catch (e) {
@@ -609,7 +609,7 @@ class Bot {
         const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) throw new Error('Gemini応答を取得できませんでした');
         if (this.game?.onAiThinkingUpdate) {
-            this.game.onAiThinkingUpdate(text);
+            this.game.onAiThinkingUpdate(text, this.game.currentPlayer, model.name);
         }
         return text;
     }
