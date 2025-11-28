@@ -215,6 +215,8 @@ class UI {
         }
 
         const toRowMap = ['一','二','三','四','五','六','七','八','九'];
+        const toFullWidth = (n) => String(n).replace(/[0-9]/g, d => '０１２３４５６７８９'[Number(d)]);
+
         const senteModelKey = window.settings ? window.settings.getSelectedModelForPlayer(PLAYER.SENTE) : null;
         const goteModelKey = window.settings ? window.settings.getSelectedModelForPlayer(PLAYER.GOTE) : null;
         const senteName = (senteModelKey && LLM_MODELS[senteModelKey]?.name) || '先手';
@@ -224,29 +226,29 @@ class UI {
         lines.push('手合割：平手');
         lines.push(`先手：${senteName}`);
         lines.push(`後手：${goteName}`);
-        lines.push('');
+        lines.push('手数----指手---------消費時間--');
 
         const formatMove = (mv) => {
-            const player = mv.player === PLAYER.SENTE ? '▲' : '△';
             const toCol = 9 - mv.to.col;
             const toRow = toRowMap[mv.to.row];
             const pieceName = PIECE_NAMES[mv.pieceType] || '';
 
             if (mv.type === 'drop') {
-                return `${player}${toCol}${toRow}${pieceName}打`;
+                return `${toFullWidth(toCol)}${toRow}${pieceName}打      `;
             }
 
             const fromCol = 9 - mv.from.col;
             const fromRow = toRowMap[mv.from.row];
-            let text = `${player}${toCol}${toRow}${pieceName}`;
+            let text = `${toFullWidth(toCol)}${toRow}${pieceName}`;
             if (mv.promote) text += '成';
-            text += `(${fromCol}${fromRow})`;
-            return text;
+            text += `(${toFullWidth(fromCol)}${fromRow})`;
+            return text.padEnd(13, ' ');
         };
 
         history.forEach((mv, idx) => {
-            const no = String(idx + 1).padStart(3, ' ');
-            lines.push(`${no} ${formatMove(mv)}`);
+            const no = String(idx + 1).padStart(4, ' ');
+            const moveText = formatMove(mv);
+            lines.push(`${no} ${moveText} ( 0:00/00:00:00)`);
         });
 
         const kifText = lines.join('\r\n');
