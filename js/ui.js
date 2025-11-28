@@ -13,6 +13,7 @@ class UI {
         // DOM参照
         this.gameStatusElement = document.getElementById('gameStatus');
         this.gameRecordElement = document.getElementById('gameRecord');
+        this.exportKifButton = document.getElementById('exportKifBtn');
         this.capturedPiecesSenteElement = document.getElementById('capturedPiecesSente');
         this.capturedPiecesGoteElement = document.getElementById('capturedPiecesGote');
         this.newGameButton = document.getElementById('newGameBtn');
@@ -31,6 +32,7 @@ class UI {
         this.aiThinkingTitleGote = document.getElementById('aiThinkingTitleGote');
         this.aiThinkingBlockSente = document.getElementById('aiThinkingBlockSente');
         this.aiThinkingBlockGote = document.getElementById('aiThinkingBlockGote');
+        this.darkModeButton = document.getElementById('darkModeBtn');
         this.aiErrorRetryButton = null;
         this.aiTitle = document.querySelector('.ai-thinking-title');
 
@@ -46,6 +48,9 @@ class UI {
         this.updateCapturedPieces();
         // 初期表示をモードに応じて調整
         this.updateThinkingVisibility(this.gameModeSelect.value);
+        
+        // ダークモード初期適用
+        this.applyDarkMode();
     }
 
     /** イベントリスナー設定 */
@@ -74,6 +79,39 @@ class UI {
         }
         if (this.saveApiSettingsSessionButton) {
             this.saveApiSettingsSessionButton.addEventListener('click', () => this.saveApiSettings('session'));
+        }
+
+        if (this.exportKifButton) {
+            this.exportKifButton.addEventListener('click', () => this.exportKif());
+        }
+        
+        if (this.darkModeButton) {
+            this.darkModeButton.addEventListener('click', () => {
+                const current = window.settings ? window.settings.getDarkMode() : false;
+                const next = !current;
+                if (window.settings) {
+                    window.settings.setDarkMode(next);
+                    this.applyDarkMode();
+                }
+            });
+        }
+    }
+
+    /** ダークモード適用 */
+    applyDarkMode() {
+        const isDark = window.settings ? window.settings.getDarkMode() : false;
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+            if (this.darkModeButton) {
+                this.darkModeButton.textContent = 'ライトモード';
+                this.darkModeButton.title = 'ライトモードに切り替える';
+            }
+        } else {
+            document.body.classList.remove('dark-mode');
+            if (this.darkModeButton) {
+                this.darkModeButton.textContent = 'ダークモード';
+                this.darkModeButton.title = 'ダークモードに切り替える';
+            }
         }
     }
 
@@ -164,8 +202,63 @@ class UI {
                 this.game.selectedCapturedPiece.index === idx) {
                 pieceElement.classList.add('selected');
             }
-            element.appendChild(pieceElement);
+        element.appendChild(pieceElement);
         });
+    }
+
+    /** 棋譜をKIF形式でエクスポート */
+    exportKif() {
+        const history = this.game.gameHistory || [];
+        if (history.length === 0) {
+            alert('棋譜がありません。');
+            return;
+        }
+
+        const toRowMap = ['一','二','三','四','五','六','七','八','九'];
+        const senteModelKey = window.settings ? window.settings.getSelectedModelForPlayer(PLAYER.SENTE) : null;
+        const goteModelKey = window.settings ? window.settings.getSelectedModelForPlayer(PLAYER.GOTE) : null;
+        const senteName = (senteModelKey && LLM_MODELS[senteModelKey]?.name) || '先手';
+        const goteName = (goteModelKey && LLM_MODELS[goteModelKey]?.name) || '後手';
+
+        const lines = [];
+        lines.push('手合割：平手');
+        lines.push(`先手：${senteName}`);
+        lines.push(`後手：${goteName}`);
+        lines.push('');
+
+        const formatMove = (mv) => {
+            const player = mv.player === PLAYER.SENTE ? '▲' : '△';
+            const toCol = 9 - mv.to.col;
+            const toRow = toRowMap[mv.to.row];
+            const pieceName = PIECE_NAMES[mv.pieceType] || '';
+
+            if (mv.type === 'drop') {
+                return `${player}${toCol}${toRow}${pieceName}打`;
+            }
+
+            const fromCol = 9 - mv.from.col;
+            const fromRow = toRowMap[mv.from.row];
+            let text = `${player}${toCol}${toRow}${pieceName}`;
+            if (mv.promote) text += '成';
+            text += `(${fromCol}${fromRow})`;
+            return text;
+        };
+
+        history.forEach((mv, idx) => {
+            const no = String(idx + 1).padStart(3, ' ');
+            lines.push(`${no} ${formatMove(mv)}`);
+        });
+
+        const kifText = lines.join('\r\n');
+        const blob = new Blob([kifText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date();
+        const stamp = now.toISOString().replace(/[:T]/g, '-').slice(0, 16);
+        a.download = `kifu-${stamp}.kif`;
+        a.href = url;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     showPromotionDialog(fromPos, toPos) {

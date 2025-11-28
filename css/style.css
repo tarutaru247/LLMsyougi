@@ -1,4 +1,4 @@
-﻿/* Global Styles */
+/* Global Styles */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -6,6 +6,7 @@ body {
     line-height: 1.6;
     color: #333;
     background-color: #f5f5f5;
+    transition: background-color 0.3s, color 0.3s;
 }
 
 .container { max-width: 1500px; margin: 0 auto; padding: 8px; }
@@ -56,6 +57,7 @@ select { background-color: white; color: #333; }
 /* Game Info */
 .game-status, .game-record, .ai-thinking { padding: 12px; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
 .record-container { height: 520px; overflow-y: auto; padding: 10px; border: 1px solid #eee; margin-top: 10px; }
+.record-actions { margin-top: 8px; }
 .move-record { padding: 5px; border-bottom: 1px solid #eee; cursor: pointer; }
 .move-record:hover { background-color: #f0f0f0; }
 .current-move { background-color: #e6f7ff; }
@@ -93,4 +95,141 @@ select { background-color: white; color: #333; }
     header { flex-direction: column; align-items: flex-start; }
     .game-controls { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
     button, select { margin-right: 0; }
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+}
+
+body.dark-mode h1, 
+body.dark-mode h2, 
+body.dark-mode h3 {
+    color: #f0f0f0;
+}
+
+body.dark-mode header {
+    border-bottom-color: #444;
+}
+
+body.dark-mode select {
+    background-color: #333;
+    color: #f0f0f0;
+    border: 1px solid #555;
+}
+
+body.dark-mode .settings-bar {
+    background-color: #2d2d2d;
+    border-color: #444;
+}
+
+body.dark-mode .captured-pieces,
+body.dark-mode .game-status,
+body.dark-mode .game-record,
+body.dark-mode .ai-thinking {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #f0f0f0;
+}
+
+body.dark-mode .record-container,
+body.dark-mode .thinking-container {
+    background-color: #222;
+    border-color: #444;
+    color: #ddd;
+}
+
+body.dark-mode .move-record {
+    border-bottom-color: #333;
+}
+
+body.dark-mode .move-record:hover {
+    background-color: #333;
+}
+
+body.dark-mode .move-record.current-move {
+    background-color: #1e3a5a; /* Darker blue for highlight */
+    color: #fff;
+}
+
+body.dark-mode .modal-content {
+    background-color: #2d2d2d;
+    color: #f0f0f0;
+}
+
+body.dark-mode .api-setting input {
+    background-color: #333;
+    color: #f0f0f0;
+    border-color: #555;
+}
+
+body.dark-mode .api-warning {
+    background-color: #332b2b;
+    border-color: #554444;
+    color: #ddd;
+}
+
+body.dark-mode .api-note {
+    color: #aaa;
+}
+
+body.dark-mode .ai-move-block {
+    background-color: #333;
+    border-color: #444;
+    color: #ddd;
+}
+
+body.dark-mode .ai-move-block.latest {
+    border-color: #6a8dc7;
+    box-shadow: 0 0 0 2px rgba(106, 141, 199, 0.2);
+}
+
+body.dark-mode .ai-move-meta {
+    color: rgba(255,255,255,0.6);
+}
+
+body.dark-mode .ai-move-meta .ai-label {
+    color: rgba(255,255,255,0.4);
+}
+
+body.dark-mode .ai-move-reason {
+    color: #f0f0f0;
+}
+
+body.dark-mode #darkModeBtn {
+    background-color: #555;
+    color: #ffeb3b; /* Yellow icon for moon/sun */
+}
+
+body.dark-mode #darkModeBtn:hover {
+    background-color: #666;
+}
+
+/* Adjust captured pieces in dark mode */
+body.dark-mode .captured-piece {
+    background-color: #c09050; /* Slightly dimmer wood color */
+    border-color: #222;
+    color: #000; /* Piece text remains black on wood */
+}
+
+body.dark-mode .captured-piece:hover {
+    background-color: #d0a060;
+}
+
+body.dark-mode .promotion-dialog {
+    background-color: #333;
+    border-color: #777;
+    color: #f0f0f0;
+    box-shadow: 0 0 10px rgba(255,255,255,0.1);
+}
+
+body.dark-mode .promotion-dialog button {
+    background-color: #444;
+    color: #f0f0f0;
+    border: 1px solid #666;
+}
+
+body.dark-mode .promotion-dialog button:hover {
+    background-color: #555;
 }
