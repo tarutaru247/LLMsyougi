@@ -307,6 +307,7 @@ class UI {
         if (!text) return null;
         const lines = text.split(/\r?\n/);
         const moves = [];
+        let lastDest = null;
 
         const rowMap = { '一':0,'二':1,'三':2,'四':3,'五':4,'六':5,'七':6,'八':7,'九':8 };
         const fwToHalf = (s) => s.replace(/[０-９]/g, d => String('０１２３４５６７８９'.indexOf(d)));
@@ -335,11 +336,15 @@ class UI {
         for (const line of lines) {
             const m = moveLineRe.exec(line);
             if (!m) continue;
-            let token = m[1]; // 例: ２六歩(27) or ２六歩成(27) or ２六歩打
+            let token = m[1]; // 例: ２六歩(27) or ２六歩成(27) or ２六歩打 / 同　馬(52)
             token = token.replace(/^[▲△]/, ''); // 先後記号を除去
+            token = token.replace(/\u3000/g, ''); // 全角空白除去
 
             // 行き先
-            const dest = parseSquare(token.slice(0,2));
+            let dest = parseSquare(token.slice(0,2));
+            if (!dest && token.startsWith('同')) {
+                dest = lastDest ? { ...lastDest } : null;
+            }
             if (!dest) return null;
 
             let rest = token.slice(2);
@@ -369,6 +374,7 @@ class UI {
                 pieceType,
                 player: moves.length % 2 === 0 ? PLAYER.SENTE : PLAYER.GOTE
             });
+            lastDest = dest;
         }
 
         return moves.length > 0 ? moves : null;
