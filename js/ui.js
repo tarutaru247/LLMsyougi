@@ -335,13 +335,16 @@ class UI {
         for (const line of lines) {
             const m = moveLineRe.exec(line);
             if (!m) continue;
-            const token = m[1]; // 例: ２六歩 or ２六歩成 or ２六歩打
+            let token = m[1]; // 例: ２六歩(27) or ２六歩成(27) or ２六歩打
+            token = token.replace(/^[▲△]/, ''); // 先後記号を除去
 
             // 行き先
             const dest = parseSquare(token.slice(0,2));
             if (!dest) return null;
 
-            const rest = token.slice(2);
+            let rest = token.slice(2);
+            // 元位置カッコを除去してから判定
+            rest = rest.replace(/\(.*?\)/g, '');
             const isDrop = rest.includes('打');
             const isPromote = rest.includes('成');
             const pieceChar = rest.replace(/(打|成)/g,'');
