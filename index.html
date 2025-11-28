@@ -126,12 +126,28 @@
         <div class="modal-content">
             <span id="howToClose" class="close">&times;</span>
             <h2>使い方</h2>
-            <p>ここに使い方の説明を書いてください。（仮文）</p>
-            <ul>
-                <li>ボタン操作の流れ</li>
-                <li>モデル選択の注意点</li>
-                <li>対局停止・再開の方法</li>
-            </ul>
+            <div class="howto-body">
+                <h3>対局前の準備</h3>
+                <ul>
+                    <li>対局するには API キーが必要です。<strong>API設定</strong>から OpenAI / Gemini の API キーを設定してください。Gemini 無料枠を除き、従量課金となります。</li>
+                    <li>現在使用できるモデル：GPT-5.1 / Gemini 2.5 Flash / Gemini 3 Pro Preview</li>
+                </ul>
+
+                <h3>対局者選択</h3>
+                <ul>
+                    <li><strong>人間 vs 人間</strong>：局面編集や動作確認用。</li>
+                    <li><strong>人間 vs 生成AI</strong>：人間が先手、AI が後手。後手モデルを対局したい AI に設定。人間が 1 手目を指すと AI が動作開始。</li>
+                    <li><strong>生成AI vs 生成AI</strong>：AI 同士を眺めるモード。先手モデルと後手モデルを設定して「対局開始」。泥仕合になりやすく、放置すると API を使い続けるので注意。</li>
+                </ul>
+
+                <h3>モード選択</h3>
+                <p>AI が手を選ぶ方式は 2 種類です。盤面（画像と文字）、棋譜、直前の手などをプロンプトに含めて次の手を考えさせます。</p>
+                <ul>
+                    <li><strong>選択式</strong>：合法手リストを渡し、その中から 1 手を選択。反則が出にくく安定。</li>
+                    <li><strong>生成式</strong>：合法手リストを渡さず自立思考。反則・無効手の可能性あり。使うときは高性能モデル推奨。</li>
+                </ul>
+                <p>AI が無効な手を指した場合は「再生成」を試してください。繰り返す場合は一手戻して別の手を指してください。不具合が発生する場合があります。</p>
+            </div>
         </div>
     </div>
 
