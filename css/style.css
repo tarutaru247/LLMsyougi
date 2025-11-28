@@ -50,7 +50,7 @@ select { background-color: white; color: #333; }
 #shogiBoard { border: 2px solid #333; background-color: #f0cea0; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); display: block; margin: 0 10px 0 0; }
 
 /* Captured Pieces */
-.captured-pieces { width: 450px; padding: 10px; margin: 0; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
+.captured-pieces { width: 470px; padding: 10px; margin: 0; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
 .pieces-container { display: flex; flex-wrap: wrap; gap: 5px; min-height: 50px; }
 
 /* Game Info */
