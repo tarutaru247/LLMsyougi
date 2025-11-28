@@ -107,12 +107,18 @@ class Game {
     }
     
     /**
-     * ゲームモードを設定
-     * @param {string} mode - ゲームモード ('human' または 'llm')
+     * ゲームモードを設定（局面は保持する）
+     * @param {string} mode - ゲームモード ('human' | 'llm' | 'llm-vs-llm')
      */
     setGameMode(mode) {
         this.gameMode = mode;
-        this.initialize();
+        // 進行状態を再計算
+        this.stopRequested = false;
+        this.aiAutoPlay = (mode === 'llm-vs-llm') ? this.aiAutoPlay : false;
+        this.aiErrorPending = false;
+        this.aiThinking = false;
+        if (this.onAiThinkingUpdate) this.onAiThinkingUpdate('', this.currentPlayer, null);
+        this.updateGameState();
     }
     
     /**
