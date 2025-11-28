@@ -8,7 +8,7 @@ body {
     background-color: #f5f5f5;
 }
 
-.container { max-width: 1500px; margin: 0 auto; padding: 12px; }
+.container { max-width: 1500px; margin: 0 auto; padding: 8px; }
 
 header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
 
@@ -40,17 +40,17 @@ select { background-color: white; color: #333; }
     gap: 20px;
 }
 
-.game-container { display: flex; gap: 16px; margin-top: 16px; align-items: flex-start; }
-.board-column { display: flex; justify-content: center; flex: 0 0 auto; }
-.board-container { display: flex; flex-direction: column; align-items: center; }
+.game-container { display: flex; gap: 12px; margin-top: 12px; align-items: flex-start; }
+.board-column { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; gap: 8px; }
+.board-container { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
 .record-column { flex: 0 0 260px; }
-.info-column { flex: 1 1 0; display: flex; flex-direction: column; gap: 16px; }
+.info-column { flex: 1 1 0; display: flex; flex-direction: column; gap: 12px; align-self: stretch; }
 
 /* Shogi Board */
-#shogiBoard { border: 2px solid #333; background-color: #f0cea0; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); }
+#shogiBoard { border: 2px solid #333; background-color: #f0cea0; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); display: block; }
 
 /* Captured Pieces */
-.captured-pieces { width: 450px; padding: 10px; margin: 8px 0; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
+.captured-pieces { width: 450px; padding: 10px; margin: 0; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
 .pieces-container { display: flex; flex-wrap: wrap; gap: 5px; min-height: 50px; }
 
 /* Game Info */
@@ -76,8 +76,8 @@ select { background-color: white; color: #333; }
 
 /* AI Thinking Panel */
 .ai-thinking { display: block; }
-.thinking-split { display: flex; flex-direction: row; gap: 10px; }
-.thinking-block { flex: 1 1 0; }
+.thinking-split { display: flex; flex-direction: row; gap: 10px; align-items: stretch; }
+.thinking-block { flex: 1 1 0; display: flex; flex-direction: column; }
 .thinking-container { height: 520px; overflow-y: auto; background-color: #f9f9f9; padding: 10px; border: 1px solid #eee; border-radius: 4px; font-family: 'Helvetica Neue', Arial, sans-serif; white-space: normal; margin-top: 6px; }
 .ai-move-block { background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: 6px 8px 6px; line-height: 1.4; white-space: normal; font-family: 'Helvetica Neue', Arial, sans-serif; }
 .ai-move-block.latest { border-color: #4a6da7; box-shadow: 0 0 0 2px rgba(74,109,167,0.12); }
