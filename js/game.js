@@ -143,13 +143,13 @@ class Game {
                 } else if (mv.type === 'drop') {
                     // 持ち駒に該当駒があるか確認してセット
                     const cap = this.board.capturedPieces[this.currentPlayer] || [];
-                    const idx = cap.findIndex(p => p.type === mv.pieceType);
-                    if (idx === -1) throw new Error('持ち駒が不足しています');
-                    this.selectedCapturedPiece = {
-                        player: this.currentPlayer,
-                        index: idx,
-                        piece: cap[idx]
-                    };
+                    let idx = cap.findIndex(p => p.type === mv.pieceType);
+                    // KIFに従い持ち駒が足りなくても強制的に生成してドロップを続行する
+                    if (idx === -1) {
+                        cap.push({ type: mv.pieceType, player: this.currentPlayer });
+                        idx = cap.length - 1;
+                    }
+                    this.selectedCapturedPiece = { player: this.currentPlayer, index: idx, piece: cap[idx] };
                     const ok = this.dropCapturedPiece(mv.to, true);
                     if (!ok) throw new Error('打つ位置が不正です');
                 }
