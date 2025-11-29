@@ -1,9 +1,30 @@
-node_modules
+# Dependencies
+node_modules/
 
-#以下二つのコメントアウトは消去してください。.env.exampleは消さなくて良いです。
-#.env.local
+# Builds & bundles
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment secrets
 .env
+.env.local
+.env.*.local
 
-将棋のルール.md
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Project artifacts
 docs/
 agent_log.md
+image.jpg
+封筒のルール.md
