@@ -25,4 +25,4 @@
 5. 問題が起きた場合はブラウザのコンソールにエラーメッセージが出ます。
 
 ## ライセンス
-ISC
+MIT License Copyright (c) tarutaru247 2025
