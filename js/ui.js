@@ -13,6 +13,9 @@ class UI {
         // DOM参照
         this.gameStatusElement = document.getElementById('gameStatus');
         this.gameRecordElement = document.getElementById('gameRecord');
+        this.exportKifButton = document.getElementById('exportKifBtn');
+        this.importKifButton = document.getElementById('importKifBtn');
+        this.importKifInput = document.getElementById('importKifInput');
         this.capturedPiecesSenteElement = document.getElementById('capturedPiecesSente');
         this.capturedPiecesGoteElement = document.getElementById('capturedPiecesGote');
         this.newGameButton = document.getElementById('newGameBtn');
@@ -23,6 +26,9 @@ class UI {
         this.settingsButton = document.getElementById('openApiSettingsBtn');
         this.settingsModal = document.getElementById('settingsModal');
         this.closeModalButton = document.querySelector('.close');
+        this.howToButton = document.getElementById('howToBtn');
+        this.howToModal = document.getElementById('howToModal');
+        this.howToClose = document.getElementById('howToClose');
         this.saveApiSettingsLocalButton = document.getElementById('saveApiSettingsLocal');
         this.saveApiSettingsSessionButton = document.getElementById('saveApiSettingsSession');
         this.aiThinkingSenteElement = document.getElementById('aiThinkingSente');
@@ -31,6 +37,7 @@ class UI {
         this.aiThinkingTitleGote = document.getElementById('aiThinkingTitleGote');
         this.aiThinkingBlockSente = document.getElementById('aiThinkingBlockSente');
         this.aiThinkingBlockGote = document.getElementById('aiThinkingBlockGote');
+        this.darkModeButton = document.getElementById('darkModeBtn');
         this.aiErrorRetryButton = null;
         this.aiTitle = document.querySelector('.ai-thinking-title');
 
@@ -46,6 +53,9 @@ class UI {
         this.updateCapturedPieces();
         // 初期表示をモードに応じて調整
         this.updateThinkingVisibility(this.gameModeSelect.value);
+        
+        // ダークモード初期適用
+        this.applyDarkMode();
     }
 
     /** イベントリスナー設定 */
@@ -75,6 +85,49 @@ class UI {
         if (this.saveApiSettingsSessionButton) {
             this.saveApiSettingsSessionButton.addEventListener('click', () => this.saveApiSettings('session'));
         }
+
+        if (this.exportKifButton) {
+            this.exportKifButton.addEventListener('click', () => this.exportKif());
+        }
+        if (this.importKifButton && this.importKifInput) {
+            this.importKifButton.addEventListener('click', () => this.importKifInput.click());
+            this.importKifInput.addEventListener('change', (e) => this.handleKifFile(e));
+        }
+        if (this.howToButton && this.howToModal) {
+            this.howToButton.addEventListener('click', () => this.openHowToModal());
+        }
+        if (this.howToClose && this.howToModal) {
+            this.howToClose.addEventListener('click', () => this.closeHowToModal());
+        }
+        
+        if (this.darkModeButton) {
+            this.darkModeButton.addEventListener('click', () => {
+                const current = window.settings ? window.settings.getDarkMode() : false;
+                const next = !current;
+                if (window.settings) {
+                    window.settings.setDarkMode(next);
+                    this.applyDarkMode();
+                }
+            });
+        }
+    }
+
+    /** ダークモード適用 */
+    applyDarkMode() {
+        const isDark = window.settings ? window.settings.getDarkMode() : false;
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+            if (this.darkModeButton) {
+                this.darkModeButton.textContent = 'ライトモード';
+                this.darkModeButton.title = 'ライトモードに切り替える';
+            }
+        } else {
+            document.body.classList.remove('dark-mode');
+            if (this.darkModeButton) {
+                this.darkModeButton.textContent = 'ダークモード';
+                this.darkModeButton.title = 'ダークモードに切り替える';
+            }
+        }
     }
 
     /** Game 側のイベントハンドラ設定 */
@@ -84,7 +137,7 @@ class UI {
         this.game.onPromotionDialogOpen = (fromPos, toPos) => this.showPromotionDialog(fromPos, toPos);
         this.game.onCapturedPiecesUpdate = () => this.updateCapturedPieces();
         this.game.onAiThinkingUpdate = (content, player, modelName) => this.updateAiThinking(content, player, modelName);
-        this.game.onAiError = (errorMessage) => this.handleAiError(errorMessage);
+        this.game.onAiError = (errorMessage, player, modelName) => this.handleAiError(errorMessage, player, modelName);
     }
 
     /** ゲーム状態表示 */
@@ -110,7 +163,7 @@ class UI {
             const el = document.createElement('div');
             el.className = 'move-record';
             el.dataset.index = index;
-            const moveNumber = Math.floor(index / 2) + 1;
+            const moveNumber = index + 1;
             const playerMark = move.player === PLAYER.SENTE ? '▲' : '△';
             let moveText = '';
             const toRowMap = ['\u4e00','\u4e8c','\u4e09','\u56db','\u4e94','\u516d','\u4e03','\u516b','\u4e5d'];
@@ -164,8 +217,211 @@ class UI {
                 this.game.selectedCapturedPiece.index === idx) {
                 pieceElement.classList.add('selected');
             }
-            element.appendChild(pieceElement);
+        element.appendChild(pieceElement);
         });
+    }
+
+    /** 棋譜をKIF形式でエクスポート */
+    exportKif() {
+        const history = this.game.gameHistory || [];
+        if (history.length === 0) {
+            alert('棋譜がありません。');
+            return;
+        }
+
+        const toRowMap = ['一','二','三','四','五','六','七','八','九'];
+        const toFullWidth = (n) => String(n).replace(/[0-9]/g, d => '０１２３４５６７８９'[Number(d)]);
+        const fwDigit = ['０','１','２','３','４','５','６','７','８','９'];
+
+        const unpromoteMap = {
+            [PIECE_TYPES.TO]: PIECE_TYPES.FU,
+            [PIECE_TYPES.NKYO]: PIECE_TYPES.KYO,
+            [PIECE_TYPES.NKEI]: PIECE_TYPES.KEI,
+            [PIECE_TYPES.NGIN]: PIECE_TYPES.GIN,
+            [PIECE_TYPES.UMA]: PIECE_TYPES.KAKU,
+            [PIECE_TYPES.RYU]: PIECE_TYPES.HISHA
+        };
+
+        const baseName = (pt) => {
+            const unpromoted = unpromoteMap[pt] ?? pt;
+            return PIECE_NAMES[unpromoted] || '';
+        };
+
+        const promotedName = (pt) => {
+            switch (pt) {
+                case PIECE_TYPES.TO: return 'と';
+                case PIECE_TYPES.NKYO: return '成香';
+                case PIECE_TYPES.NKEI: return '成桂';
+                case PIECE_TYPES.NGIN: return '成銀';
+                case PIECE_TYPES.UMA: return '馬';
+                case PIECE_TYPES.RYU: return '龍';
+                default: return PIECE_NAMES[pt] || '';
+            }
+        };
+
+        const pieceLabel = (pt, promoteFlag) => {
+            if (promoteFlag) {
+                return `${baseName(pt)}成`; // 例: 歩成
+            }
+            // 既に成り駒ならそのまま
+            if (unpromoteMap[pt]) {
+                return promotedName(pt);
+            }
+            return baseName(pt);
+        };
+
+        const senteModelKey = window.settings ? window.settings.getSelectedModelForPlayer(PLAYER.SENTE) : null;
+        const goteModelKey = window.settings ? window.settings.getSelectedModelForPlayer(PLAYER.GOTE) : null;
+        const senteName = (senteModelKey && LLM_MODELS[senteModelKey]?.name) || '先手';
+        const goteName = (goteModelKey && LLM_MODELS[goteModelKey]?.name) || '後手';
+
+        const lines = [];
+        lines.push('手合割：平手');
+        lines.push(`先手：${senteName}`);
+        lines.push(`後手：${goteName}`);
+        lines.push('手数----指手---------消費時間--');
+
+        let lastDest = null;
+
+        const formatMove = (mv) => {
+            const toCol = 9 - mv.to.col;
+            const toRow = toRowMap[mv.to.row];
+            const useSame = lastDest && lastDest.row === mv.to.row && lastDest.col === mv.to.col;
+            const destText = useSame ? '同' : `${fwDigit[toCol]}${toRow}`;
+            const name = pieceLabel(mv.pieceType, mv.promote);
+
+            if (mv.type === 'drop') {
+                lastDest = { ...mv.to };
+                return `${destText}${name}打`;
+            }
+
+            const fromCol = 9 - mv.from.col;
+            const fromRow = mv.from.row + 1; // 1-9
+            let text = `${destText}${name}`;
+            text += `(${fromCol}${fromRow})`;
+            lastDest = { ...mv.to };
+            return text;
+        };
+
+        history.forEach((mv, idx) => {
+            const no = String(idx + 1).padStart(4, ' ');
+            const moveText = formatMove(mv).padEnd(12, ' ');
+            lines.push(`${no} ${moveText} ( 0:00/00:00:00)`);
+        });
+
+        const kifText = lines.join('\r\n');
+        const blob = new Blob([kifText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date();
+        const stamp = now.toISOString().replace(/[:T]/g, '-').slice(0, 16);
+        a.download = `kifu-${stamp}.kif`;
+        a.href = url;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    /** KIFファイル読み込み */
+    handleKifFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const text = reader.result;
+            const moves = this.parseKif(text);
+            if (!moves) {
+                alert('KIFの読み込みに失敗しました。');
+                return;
+            }
+            const ok = this.game.importKifMoves(moves);
+            if (!ok) {
+                alert('局面の再現に失敗しました。棋譜内容を確認してください。');
+                return;
+            }
+            alert('KIFを読み込みました。');
+        };
+        reader.readAsText(file, 'utf-8');
+        // 入力をリセットして同じファイルでも再選択できるように
+        event.target.value = '';
+    }
+
+    /** KIFテキストをパースして内部ムーブ配列に変換 */
+    parseKif(text) {
+        if (!text) return null;
+        const lines = text.split(/\r?\n/);
+        const moves = [];
+        let lastDest = null;
+
+        const rowMap = { '一':0,'二':1,'三':2,'四':3,'五':4,'六':5,'七':6,'八':7,'九':8 };
+        const fwToHalf = (s) => s.replace(/[０-９]/g, d => String('０１２３４５６７８９'.indexOf(d)));
+
+        // PIECE_NAMES 逆引き
+        const nameToType = {};
+        Object.entries(PIECE_NAMES).forEach(([k,v]) => { nameToType[v] = Number(k); });
+        nameToType['玉'] = PIECE_TYPES.GYOKU;
+        nameToType['王'] = PIECE_TYPES.GYOKU;
+        nameToType['と'] = PIECE_TYPES.TO;
+        nameToType['龍'] = PIECE_TYPES.RYU;
+        nameToType['竜'] = PIECE_TYPES.RYU;
+        nameToType['馬'] = PIECE_TYPES.UMA;
+
+        const parseSquare = (sq) => {
+            if (!sq || sq.length < 2) return null;
+            const col = parseInt(fwToHalf(sq[0]), 10);
+            const rowKanji = sq[1];
+            const row = rowMap[rowKanji];
+            if (isNaN(col) || row === undefined) return null;
+            return { row, col: 9 - col };
+        };
+
+        const moveLineRe = /^\s*\d+\s+(.+?)\s*\(/; // 指手部分を括弧手前まで（空白込み）取得
+
+        for (const line of lines) {
+            const m = moveLineRe.exec(line);
+            if (!m) continue;
+            let token = m[1]; // 例: ２六歩(27) / 同　馬(52) / ▲２六歩
+            token = token.replace(/^[▲△]/, ''); // 先後記号を除去
+            token = token.replace(/[\u3000\s]+/g, ''); // 全角/半角の空白を除去
+
+            // 行き先
+            let dest = parseSquare(token.slice(0,2));
+            if (!dest && token.startsWith('同')) {
+                dest = lastDest ? { ...lastDest } : null;
+            }
+            if (!dest) return null;
+
+            let rest = token.slice(token.startsWith('同') ? 1 : 2);
+            // 元位置カッコを除去してから判定
+            rest = rest.replace(/\(.*?\)/g, '');
+            rest = rest.replace(/\s+/g, ''); // 余分な空白を除去（念のため）
+            const isDrop = rest.includes('打');
+            const isPromote = rest.includes('成');
+            const pieceChar = rest.replace(/(打|成)/g,'');
+            const pieceType = nameToType[pieceChar];
+            if (!pieceType) return null;
+
+            let fromPos = null;
+            // 元位置 (..) から取得
+            const fromMatch = line.match(/\((\d)(\d)\)/);
+            if (!isDrop && fromMatch) {
+                const fromCol = parseInt(fromMatch[1],10);
+                const fromRow = parseInt(fromMatch[2],10);
+                fromPos = { row: fromRow-1, col: 9 - fromCol };
+            }
+
+            if (isDrop && !pieceType) return null;
+            moves.push({
+                type: isDrop ? 'drop' : 'move',
+                from: fromPos,
+                to: dest,
+                promote: isPromote,
+                pieceType,
+                player: moves.length % 2 === 0 ? PLAYER.SENTE : PLAYER.GOTE
+            });
+            lastDest = dest;
+        }
+
+        return moves.length > 0 ? moves : null;
     }
 
     showPromotionDialog(fromPos, toPos) {
@@ -313,27 +569,40 @@ class UI {
             }
         }
     }
-    handleAiError(errorMessage) {
+    handleAiError(errorMessage, player, modelName) {
+        const isSente = player === PLAYER.SENTE;
+        const target = isSente ? this.aiThinkingSenteElement : this.aiThinkingGoteElement;
+        const title = isSente ? this.aiThinkingTitleSente : this.aiThinkingTitleGote;
+        if (title && modelName) {
+            title.textContent = `${isSente ? '先手' : '後手'}（${modelName}）の思考`;
+        }
+        this.hideThinkingIndicator(isSente);
+        if (!target) return;
+        target.innerHTML = '';
         const safeText = this.sanitizeText(errorMessage || 'AIエラーが発生しました');
-        const showError = (element) => {
-            if (!element) return;
-            element.innerHTML = '';
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'ai-error-message';
-            errorDiv.textContent = safeText;
-            errorDiv.style.color = '#d32f2f';
-            errorDiv.style.padding = '10px';
-            errorDiv.style.backgroundColor = '#ffebee';
-            errorDiv.style.border = '1px solid #ef9a9a';
-            errorDiv.style.borderRadius = '4px';
-            errorDiv.style.marginBottom = '10px';
-            errorDiv.style.whiteSpace = 'pre-wrap';
-            element.appendChild(errorDiv);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'ai-error-message';
+        errorDiv.textContent = safeText;
+        errorDiv.style.color = '#d32f2f';
+        errorDiv.style.padding = '10px';
+        errorDiv.style.backgroundColor = '#ffebee';
+        errorDiv.style.border = '1px solid #ef9a9a';
+        errorDiv.style.borderRadius = '4px';
+        errorDiv.style.marginBottom = '10px';
+        errorDiv.style.whiteSpace = 'pre-wrap';
+        target.appendChild(errorDiv);
+
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = '再生成する';
+        retryBtn.className = 'retry-btn';
+        retryBtn.style.padding = '6px 12px';
+        retryBtn.style.marginTop = '6px';
+        retryBtn.onclick = () => {
+            retryBtn.disabled = true;
+            retryBtn.textContent = '再生成中...';
+            this.game.retryBotMove();
         };
-        showError(this.aiThinkingSenteElement);
-        showError(this.aiThinkingGoteElement);
-        this.hideThinkingIndicator(true);
-        this.hideThinkingIndicator(false);
+        target.appendChild(retryBtn);
     }
     /** 値を安全な文字列に変換 */
     sanitizeText(value) {
@@ -415,11 +684,12 @@ class UI {
                 element.textContent = '思考履歴はありません';
                 return;
             }
-            hist.forEach((entry, idx) => {
-                const block = this.createMoveBlock(entry, idx === hist.length - 1);
+            const reversed = [...hist].reverse(); // 最新を上に
+            reversed.forEach((entry, idx) => {
+                const block = this.createMoveBlock(entry, idx === 0);
                 element.appendChild(block);
             });
-            element.scrollTop = element.scrollHeight;
+            element.scrollTop = 0; // 最新が上なので先頭へ
         };
         renderOne('sente', this.aiThinkingSenteElement);
         renderOne('gote', this.aiThinkingGoteElement);
@@ -448,6 +718,18 @@ class UI {
         this.aiThinkingIndicator[key] = null;
     }
 
+    openHowToModal() {
+        if (this.howToModal) {
+            this.howToModal.style.display = 'block';
+        }
+    }
+
+    closeHowToModal() {
+        if (this.howToModal) {
+            this.howToModal.style.display = 'none';
+        }
+    }
+
     /**
      * モードに応じて思考欄の表示/非表示を切り替える
      * human: 両方非表示
@@ -458,6 +740,10 @@ class UI {
         const showBoth = mode === 'llm-vs-llm';
         const showGote = showBoth || mode === 'llm';
         const showSente = showBoth;
+
+        // 並び順: 左に先手、右に後手
+        if (this.aiThinkingBlockSente) this.aiThinkingBlockSente.style.order = '1';
+        if (this.aiThinkingBlockGote) this.aiThinkingBlockGote.style.order = '2';
 
         if (this.aiThinkingBlockSente) {
             this.aiThinkingBlockSente.style.display = showSente ? 'block' : 'none';

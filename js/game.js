@@ -19,6 +19,7 @@ class Game {
         this.selectedCapturedPiece = null; // 選択された持ち駒
         this.isBrowsingHistory = false; // 棋譜ブラウズフラグ
         this.stopRequested = false; // 対局停止フラグ
+        this.aiErrorPending = false; // AIエラーで停止中か
         this.aiAutoPlay = false; // AI同士の自動進行フラグ
         
         // ボードのイベントハンドラを設定
@@ -52,6 +53,7 @@ class Game {
     startAiMatch() {
         if (this.gameMode === 'llm-vs-llm' && !this.aiThinking && this.gameResult === null) {
             this.stopRequested = false;
+            this.aiErrorPending = false;
             this.aiAutoPlay = true;
             this.makeBotMove();
         }
@@ -63,11 +65,9 @@ class Game {
     stopAiMatch() {
         this.stopRequested = true;
         this.aiAutoPlay = false;
+        this.aiErrorPending = false;
         this.aiThinking = false;
         if (this.onAiThinkingUpdate) this.onAiThinkingUpdate('', this.currentPlayer, null);
-        if (this.ui && this.ui.hideAiThinking) {
-            this.ui.hideAiThinking();
-        }
         this.updateGameState();
     }
     
@@ -82,6 +82,7 @@ class Game {
         this.gameResult = null; // ゲーム結果をリセット
         this.isBrowsingHistory = false; // 履歴ブラウズをリセット
         this.stopRequested = false;
+        this.aiErrorPending = false;
         this.aiAutoPlay = false;
         // AI思考履歴をクリア
         if (this.onAiThinkingUpdate) {
@@ -106,12 +107,69 @@ class Game {
     }
     
     /**
-     * ゲームモードを設定
-     * @param {string} mode - ゲームモード ('human' または 'llm')
+     * ゲームモードを設定（局面は保持する）
+     * @param {string} mode - ゲームモード ('human' | 'llm' | 'llm-vs-llm')
      */
     setGameMode(mode) {
         this.gameMode = mode;
-        this.initialize();
+        // 進行状態を再計算
+        this.stopRequested = false;
+        this.aiAutoPlay = (mode === 'llm-vs-llm') ? this.aiAutoPlay : false;
+        this.aiErrorPending = false;
+        this.aiThinking = false;
+        if (this.onAiThinkingUpdate) this.onAiThinkingUpdate('', this.currentPlayer, null);
+        this.updateGameState();
+    }
+
+    /**
+     * KIF取り込み用：初期局面から指定手順を再生
+     * @param {Array<Object>} moves - {type:'move'|'drop', from?, to, promote?, pieceType, player}
+     * @returns {boolean} 成功/失敗
+     */
+    importKifMoves(moves) {
+        try {
+            this.initialize(); // 盤面と履歴をリセット
+            this.stopRequested = false;
+            this.aiErrorPending = false;
+            this.aiAutoPlay = false;
+            this.gameResult = null;
+
+            for (let i = 0; i < moves.length; i++) {
+                const mv = moves[i];
+                this.currentPlayer = (i % 2 === 0) ? PLAYER.SENTE : PLAYER.GOTE;
+
+                if (mv.type === 'move') {
+                    this.movePiece(mv.from, mv.to, !!mv.promote);
+                } else if (mv.type === 'drop') {
+                    // 持ち駒に該当駒があるか確認してセット
+                    const cap = this.board.capturedPieces[this.currentPlayer] || [];
+                    let idx = cap.findIndex(p => p.type === mv.pieceType);
+                    // KIFに従い持ち駒が足りなくても強制的に生成してドロップを続行する
+                    if (idx === -1) {
+                        cap.push({ type: mv.pieceType, player: this.currentPlayer });
+                        idx = cap.length - 1;
+                    }
+                    this.selectedCapturedPiece = { player: this.currentPlayer, index: idx, piece: cap[idx] };
+                    const ok = this.dropCapturedPiece(mv.to, true);
+                    // ドロップ処理後は選択状態を必ず解除
+                    this.selectedCapturedPiece = null;
+                    if (!ok) throw new Error('打つ位置が不正です');
+                }
+            }
+
+            // 次の手番をセット
+            this.currentPlayer = (moves.length % 2 === 0) ? PLAYER.SENTE : PLAYER.GOTE;
+            this.updateGameState();
+            this.board.draw();
+            if (this.onCapturedPiecesUpdate) this.onCapturedPiecesUpdate(this.board.capturedPieces);
+            if (this.onGameRecordUpdate) this.onGameRecordUpdate(this.gameHistory);
+            // 念のため選択状態をクリア
+            this.selectedCapturedPiece = null;
+            return true;
+        } catch (e) {
+            console.error('KIF import failed:', e);
+            return false;
+        }
     }
     
     /**
@@ -367,7 +425,7 @@ class Game {
             const inCheck = this.isPlayerInCheck(this.currentPlayer);
             this.gameResult = this.currentPlayer === PLAYER.SENTE ? 'gote_win' : 'sente_win';
             if (this.onAiThinkingUpdate) {
-                this.onAiThinkingUpdate(inCheck ? '詰み（合法手なし）' : '手詰まり（合法手なし）');
+                this.onAiThinkingUpdate(inCheck ? '詰み（合法手なし）' : '手詰まり（合法手なし）', this.currentPlayer, null);
             }
             this.updateGameState();
             return;
@@ -376,7 +434,7 @@ class Game {
         // LLMモードで、現在の手番がGOTEの場合はLLMの手を指す
         const isBothAi = this.gameMode === 'llm-vs-llm';
         const isSingleAiTurn = this.gameMode === 'llm' && this.currentPlayer === PLAYER.GOTE;
-        if ((isSingleAiTurn || (isBothAi && this.aiAutoPlay)) && !this.aiThinking && !this.stopRequested) {
+        if ((isSingleAiTurn || (isBothAi && this.aiAutoPlay)) && !this.aiThinking && !this.stopRequested && !this.aiErrorPending) {
             setTimeout(() => this.makeBotMove(), 300);
         }
     }
@@ -385,8 +443,10 @@ class Game {
      * AIの手を再生成する（エラー時など）
      */
     retryBotMove() {
-        // 思考中フラグなどが残っていたらクリア
+        // 思考フラグなどをクリアして再開
         this.aiThinking = false;
+        this.aiErrorPending = false;
+        if (this.gameMode === 'llm-vs-llm') { this.aiAutoPlay = true; }
         
         // エラー表示等をクリアして再実行
         if (this.onAiThinkingUpdate) {
@@ -409,6 +469,7 @@ class Game {
         if (this.gameMode === 'human') return;
         if (this.aiThinking) return;
         if (this.stopRequested) return;
+        if (this.aiErrorPending) return;
 
         // 合法手が無い＝詰み/行き場なし
         const preLegal = this.getAllPossibleMoves(this.currentPlayer);
@@ -465,11 +526,13 @@ class Game {
             this.aiThinking = false;
 
             if (isError) {
-                console.error("AI Error:", thinking);
+                console.error('AI Error:', thinking);
+                this.aiThinking = false;
+                this.aiErrorPending = true;
+                this.aiAutoPlay = false;
                 if (this.onAiError) {
-                    this.onAiError(thinking);
+                    this.onAiError(thinking, this.currentPlayer, LLM_MODELS[modelKey].name);
                 }
-                // エラー時は対局停止状態のまま（次のターンに進まない）
                 this.updateGameState();
             } else {
                 if (move) {
@@ -491,7 +554,7 @@ class Game {
                         } else {
                             console.error("持ち駒が見つかりません:", move);
                             if (this.onAiError) {
-                                this.onAiError("持ち駒が見つかりませんでした。");
+                                this.onAiError('持ち駒が見つかりませんでした。', this.currentPlayer, LLM_MODELS[modelKey].name);
                             }
                             this.updateGameState();
                             return;
@@ -501,7 +564,7 @@ class Game {
                 } else {
                     console.error("AI returned null move without error flag.");
                     if (this.onAiError) {
-                        this.onAiError("AIから指し手を受け取れませんでした。");
+                        this.onAiError('AIから指し手を受け取れませんでした。', this.currentPlayer, LLM_MODELS[modelKey].name);
                     }
                     this.updateGameState();
                 }

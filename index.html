@@ -7,11 +7,21 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <script>
+        (function() {
+            const dm = localStorage.getItem('darkMode');
+            // デフォルトはダークモード(true)。設定があればそれに従う
+            if (dm === 'true' || dm === null) {
+                document.body.classList.add('dark-mode');
+            }
+        })();
+    </script>
     <div class="container">
         <header>
             <h1>生成AI将棋</h1>
             <div class="game-controls">
                 <button id="newGameBtn">新規対局</button>
+                <button id="howToBtn">使い方</button>
                 <button id="undoBtn">一手戻す</button>
                 <button id="startAiMatchBtn">対局開始</button>
                 <button id="stopAiMatchBtn">対局停止</button>
@@ -21,31 +31,46 @@
                     <option value="llm-vs-llm">生成AI vs 生成AI</option>
                 </select>
                 <button id="openApiSettingsBtn">API設定</button>
+                <button id="darkModeBtn">ダークモード</button>
             </div>
         </header>
 
         <!-- 設定バー（モデル選択・思考モード） -->
         <div id="modelSettingsBar" class="settings-bar"></div>
 
-        <div class="game-container">
-            <div class="board-container">
-                <div class="captured-pieces top">
-                    <h3>後手の持ち駒</h3>
-                    <div id="capturedPiecesGote" class="pieces-container"></div>
-                </div>
-
-                <canvas id="shogiBoard" width="450" height="500"></canvas>
-
-                <div class="captured-pieces bottom">
-                    <h3>先手の持ち駒</h3>
-                    <div id="capturedPiecesSente" class="pieces-container"></div>
+                <div class="game-container">
+            <div class="record-column">
+                <div class="game-record">
+                    <h3>棋譜</h3>
+                    <div id="gameRecord" class="record-container"></div>
+                    <div class="record-actions">
+                        <button id="exportKifBtn">棋譜をKIFで保存</button>
+                        <button id="importKifBtn">KIFを読み込み</button>
+                        <input type="file" id="importKifInput" accept=".kif,text/plain" style="display:none">
+                    </div>
                 </div>
             </div>
 
-            <div class="game-info">
+            <div class="board-column">
+                <div class="board-container">
+                    <div class="captured-pieces top">
+                        <h3>後手の持ち駒</h3>
+                        <div id="capturedPiecesGote" class="pieces-container"></div>
+                    </div>
+
+                    <canvas id="shogiBoard" width="470" height="480"></canvas>
+
+                    <div class="captured-pieces bottom">
+                        <h3>先手の持ち駒</h3>
+                        <div id="capturedPiecesSente" class="pieces-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-column">
                 <div class="game-status">
                     <h3>ゲーム状態</h3>
-                    <p id="gameStatus">先手の手番です</p>
+                    <p id="gameStatus">先手の番です</p>
                 </div>
 
                 <div class="ai-thinking">
@@ -61,16 +86,8 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="game-record">
-                    <h3>棋譜</h3>
-                    <div id="gameRecord" class="record-container"></div>
-                </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Settings Modal -->
+    </div><!-- Settings Modal -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -104,6 +121,36 @@
         </div>
     </div>
 
+    <!-- How-to Modal -->
+    <div id="howToModal" class="modal">
+        <div class="modal-content">
+            <span id="howToClose" class="close">&times;</span>
+            <h2>使い方</h2>
+            <div class="howto-body">
+                <h3>対局前の準備</h3>
+                <ul>
+                    <li>対局するには API キーが必要です。<strong>API設定</strong>から OpenAI / Gemini の API キーを設定してください。Gemini 無料枠を除き、従量課金となります。</li>
+                    <li>現在使用できるモデル：GPT-5.1 / Gemini 2.5 Flash / Gemini 3 Pro Preview</li>
+                </ul>
+
+                <h3>対局者選択</h3>
+                <ul>
+                    <li><strong>人間 vs 人間</strong>：局面編集や動作確認用。</li>
+                    <li><strong>人間 vs 生成AI</strong>：人間が先手、AI が後手。後手モデルを対局したい AI に設定。人間が 1 手目を指すと AI が動作開始。</li>
+                    <li><strong>生成AI vs 生成AI</strong>：AI 同士を眺めるモード。先手モデルと後手モデルを設定して「対局開始」。泥仕合になりやすく、放置すると API を使い続けるので注意。</li>
+                </ul>
+
+                <h3>モード選択</h3>
+                <p>AI が手を選ぶ方式は 2 種類です。盤面（画像と文字）、棋譜、直前の手などをプロンプトに含めて次の手を考えさせます。</p>
+                <ul>
+                    <li><strong>選択式</strong>：合法手リストを渡し、その中から 1 手を選択。反則が出にくく安定。</li>
+                    <li><strong>生成式</strong>：合法手リストを渡さず自立思考。反則・無効手の可能性あり。使うときは高性能モデル推奨。</li>
+                </ul>
+                <p>AI が無効な手を指した場合は「再生成」を試してください。繰り返す場合は一手戻して別の手を指してください。不具合が発生する場合があります。</p>
+            </div>
+        </div>
+    </div>
+
     <script src="js/constants.js"></script>
     <script src="js/pieces.js"></script>
     <script src="js/board.js"></script>
@@ -112,8 +159,13 @@
     <script src="js/bot.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/main.js"></script>
+
+    <footer style="text-align:center; padding: 12px 0; color: #666;">
+        Copyright tarutaru247 all rights reserved
+    </footer>
 </body>
 </html>
+
 
 
 

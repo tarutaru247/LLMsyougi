@@ -10,6 +10,7 @@ class Settings {
         this.selectedModel = 'GPT51_MEDIUM';
         this.selectedModelSente = this.selectedModel;
         this.selectedModelGote = this.selectedModel;
+        this.darkMode = false;
         this.storageMode = 'local'; // 'local' | 'session'
         this.loadSettings();
     }
@@ -46,6 +47,14 @@ class Settings {
         if (g3 === 'high' || g3 === 'low') this.gemini3Thinking = g3;
         const gf = localStorage.getItem('geminiFlashThinking');
         if (gf === 'on' || gf === 'off') this.geminiFlashThinking = gf;
+        
+        const dm = localStorage.getItem('darkMode');
+        // デフォルトはダークモード(true)。設定があればそれに従う
+        if (dm === null) {
+            this.darkMode = true;
+        } else {
+            this.darkMode = dm === 'true';
+        }
     }
 
     /**
@@ -61,6 +70,7 @@ class Settings {
         localStorage.setItem('gemini3Thinking', this.gemini3Thinking);
         localStorage.setItem('geminiFlashThinking', this.geminiFlashThinking);
         localStorage.setItem('botThinkingMode', this.botThinkingMode);
+        localStorage.setItem('darkMode', this.darkMode);
         // ストレージモードは両方に記録（次回起動時に参照しやすくするため）
         localStorage.setItem('storageMode', mode);
         sessionStorage.setItem('storageMode', mode);
@@ -146,6 +156,15 @@ class Settings {
         return this.botThinkingMode;
     }
 
+    setDarkMode(enabled) {
+        this.darkMode = !!enabled;
+        this.saveSettings(this.storageMode);
+    }
+
+    getDarkMode() {
+        return this.darkMode;
+    }
+
     hasSelectedModelApiKey() {
         return !!this.getApiKey(this.selectedModel);
     }
@@ -176,6 +195,7 @@ class Settings {
             gemini3Thinking: this.gemini3Thinking,
             geminiFlashThinking: this.geminiFlashThinking,
             botThinkingMode: this.botThinkingMode,
+            darkMode: this.darkMode,
             storageMode: this.storageMode
         };
     }
@@ -199,6 +219,9 @@ class Settings {
         }
         if (settings.botThinkingMode === 'select' || settings.botThinkingMode === 'generate') {
             this.botThinkingMode = settings.botThinkingMode;
+        }
+        if (typeof settings.darkMode === 'boolean') {
+            this.darkMode = settings.darkMode;
         }
         if (settings.storageMode === 'session' || settings.storageMode === 'local') {
             this.storageMode = settings.storageMode;
@@ -295,7 +318,7 @@ function createModelSelector(container, settings, onModelChange) {
     radioSelect.checked = settings.getBotThinkingMode() === 'select';
     radioSelect.addEventListener('change', () => settings.setBotThinkingMode('select'));
     labelSelect.appendChild(radioSelect);
-    labelSelect.appendChild(document.createTextNode(' 選択式 (正確)'));
+    labelSelect.appendChild(document.createTextNode(' 選択式 (推奨)'));
     radioGroup.appendChild(labelSelect);
 
     // 生成式
@@ -308,7 +331,7 @@ function createModelSelector(container, settings, onModelChange) {
     radioGen.checked = settings.getBotThinkingMode() === 'generate';
     radioGen.addEventListener('change', () => settings.setBotThinkingMode('generate'));
     labelGen.appendChild(radioGen);
-    labelGen.appendChild(document.createTextNode(' 生成式 (自由)'));
+    labelGen.appendChild(document.createTextNode(' 生成式'));
     radioGroup.appendChild(labelGen);
 
     modeContainer.appendChild(radioGroup);
