@@ -151,6 +151,8 @@ class Game {
                     }
                     this.selectedCapturedPiece = { player: this.currentPlayer, index: idx, piece: cap[idx] };
                     const ok = this.dropCapturedPiece(mv.to, true);
+                    // ドロップ処理後は選択状態を必ず解除
+                    this.selectedCapturedPiece = null;
                     if (!ok) throw new Error('打つ位置が不正です');
                 }
             }
@@ -161,6 +163,8 @@ class Game {
             this.board.draw();
             if (this.onCapturedPiecesUpdate) this.onCapturedPiecesUpdate(this.board.capturedPieces);
             if (this.onGameRecordUpdate) this.onGameRecordUpdate(this.gameHistory);
+            // 念のため選択状態をクリア
+            this.selectedCapturedPiece = null;
             return true;
         } catch (e) {
             console.error('KIF import failed:', e);
